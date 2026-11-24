@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v6.0 — Phase 2: Dynamic Atmosphere & Weather</title>
+  <title>Highway Rush v6.1 — Tuned Atmosphere & Lighting</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -156,7 +156,7 @@
     <!-- SETUP MENU -->
     <div id="startOverlay" class="overlay">
       <h1>NH-44 HIGHWAY RUSH</h1>
-      <p class="sub">Phase 2: Day/Night Cycle, Monsoon Rain & Roadside World</p>
+      <p class="sub">Phase 2.1: Balanced Lighting, Monsoon & Day/Night Cycle</p>
 
       <div class="menu-group">
         <div class="menu-label">Your Car Color</div>
@@ -300,12 +300,12 @@
 
     function initPropsAndRain() {
       rainDrops = [];
-      for (let i = 0; i < 65; i++) {
+      for (let i = 0; i < 48; i++) {
         rainDrops.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          len: 10 + Math.random() * 12,
-          speed: 11 + Math.random() * 6,
+          len: 8 + Math.random() * 9,
+          speed: 10 + Math.random() * 5,
         });
       }
       roadProps = [];
@@ -344,10 +344,10 @@
         y,
         vx: (Math.random() - 0.5) * 1.1,
         vy: 1.6 + Math.random() * 1.6,
-        life: 15,
-        maxLife: 15,
-        color: isWaterSpray ? 'rgba(186, 230, 253, 0.5)' : 'rgba(200, 210, 220, 0.45)',
-        size: isWaterSpray ? 3 + Math.random() * 2.5 : 4 + Math.random() * 3,
+        life: 14,
+        maxLife: 14,
+        color: isWaterSpray ? 'rgba(186, 230, 253, 0.36)' : 'rgba(200, 210, 220, 0.42)',
+        size: isWaterSpray ? 2.6 + Math.random() * 2 : 4 + Math.random() * 3,
       });
     }
 
@@ -646,7 +646,6 @@
       if (weatherPref === 'night') return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT • CLEAR' };
       if (weatherPref === 'rain') return { timeOfDay: 'DUSK', raining: true, label: 'MONSOON RAIN' };
 
-      // Dynamic cycle every 4 KM
       const phase = Math.floor(distanceKm / 4) % 4;
       if (phase === 0) return { timeOfDay: 'DAY', raining: false, label: 'DAY • CLEAR' };
       if (phase === 1) return { timeOfDay: 'SUNSET', raining: false, label: 'SUNSET • GOLDEN' };
@@ -733,30 +732,34 @@
 
     function drawVehicle(v, isPlayer = false) {
       const { x, y, w, h, color, type, shield, label, tilt = 0, boosting = false, braking = false } = v;
-      const isNight = state.timeOfDay === 'NIGHT';
+      const isNight = state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK';
 
       ctx.save();
       ctx.translate(x + w / 2, y + h / 2);
       ctx.rotate(tilt);
 
-      // Headlights for both players & traffic (brighter at night)
       if (isPlayer) {
-        const beamLen = isNight ? 135 : 85;
-        const beamAlpha = isNight ? 0.42 : 0.22;
+        const beamLen = isNight ? 145 : 80;
+        const beamAlpha = isNight ? 0.34 : 0.16;
         const beamGrad = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 - beamLen);
         beamGrad.addColorStop(0, `rgba(254, 240, 138, ${beamAlpha})`);
+        beamGrad.addColorStop(0.65, `rgba(254, 240, 138, ${beamAlpha * 0.35})`);
         beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
         ctx.fillStyle = beamGrad;
         ctx.beginPath();
-        ctx.moveTo(-w / 2 + 5, -h / 2);
-        ctx.lineTo(-w / 2 - 22, -h / 2 - beamLen);
-        ctx.lineTo(w / 2 + 22, -h / 2 - beamLen);
-        ctx.lineTo(w / 2 - 5, -h / 2);
+        ctx.moveTo(-w / 2 + 4, -h / 2);
+        ctx.lineTo(-w / 2 - 26, -h / 2 - beamLen);
+        ctx.lineTo(w / 2 + 26, -h / 2 - beamLen);
+        ctx.lineTo(w / 2 - 4, -h / 2);
         ctx.closePath();
         ctx.fill();
 
         ctx.shadowColor = color;
-        ctx.shadowBlur = isNight ? 20 : 12;
+        ctx.shadowBlur = isNight ? 18 : 10;
+      } else if (isNight) {
+        // Subtle red taillight glow on night traffic for clear visibility
+        ctx.shadowColor = '#ff4d4d';
+        ctx.shadowBlur = 10;
       }
 
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -868,7 +871,6 @@
     function updateLocalVfx() {
       const spd = state.currentSpeed || 6;
 
-      // Scroll roadside trees & streetlights
       if (gameStarted && !state.gameOver) {
         roadProps.forEach((prop) => {
           prop.y += spd;
@@ -879,11 +881,10 @@
         });
       }
 
-      // Rain animation
       if (state.raining) {
         rainDrops.forEach((r) => {
-          r.y += r.speed + spd * 0.6;
-          r.x -= 1.8;
+          r.y += r.speed + spd * 0.55;
+          r.x -= 1.4;
           if (r.y > canvas.height) { r.y = -15; r.x = Math.random() * (canvas.width + 40); }
           if (r.x < 0) r.x += canvas.width;
         });
@@ -905,8 +906,7 @@
               skidMarks.push({ x: p.x + p.w - 9, y: p.y + p.h - 6, alpha: 0.45 });
             }
             if (Math.random() < 0.55) spawnSmoke(p.x + p.w / 2, p.y + p.h, false);
-          } else if (state.raining && Math.random() < 0.45) {
-            // Water spray mist in monsoon rain
+          } else if (state.raining && Math.random() < 0.35) {
             spawnSmoke(p.x + p.w / 2, p.y + p.h, true);
           }
         });
@@ -1027,7 +1027,6 @@
       state.roadOffset = (state.roadOffset + currentSpeed) % 48;
       state.distanceKm += currentSpeed * 0.0025;
 
-      // Update dynamic Day/Sunset/Night/Monsoon cycle
       const atm = resolveAtmosphere(state.distanceKm);
       if (atm.label !== state.envLabel) {
         state.timeOfDay = atm.timeOfDay;
@@ -1135,15 +1134,17 @@
         ctx.translate(dx, dy);
       }
 
-      // Dynamic Shoulder & Asphalt palette by Time of Day
       let grassColor = '#1b4332';
-      let roadColor = '#2b313a';
+      let roadColor = '#2a3038';
       if (state.timeOfDay === 'SUNSET') {
-        grassColor = '#3f2e1d';
-        roadColor = '#27222b';
-      } else if (state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK') {
-        grassColor = '#0c1c14';
-        roadColor = '#161b22';
+        grassColor = '#432d1c';
+        roadColor = '#28222a';
+      } else if (state.timeOfDay === 'DUSK') {
+        grassColor = '#132226';
+        roadColor = '#1d242b';
+      } else if (state.timeOfDay === 'NIGHT') {
+        grassColor = '#08130e';
+        roadColor = '#12161c';
       }
 
       ctx.fillStyle = grassColor;
@@ -1153,26 +1154,25 @@
       roadProps.forEach((prop) => {
         const px = prop.side === 'left' ? 22 : canvas.width - 22;
         if (prop.kind === 'tree') {
-          ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#082f1e' : '#15803d';
+          ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#072417' : '#15803d';
           ctx.beginPath();
           ctx.arc(px, prop.y, 14, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#0d472e' : '#22c55e';
+          ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#0b3824' : '#22c55e';
           ctx.beginPath();
           ctx.arc(px - 3, prop.y - 3, 9, 0, Math.PI * 2);
           ctx.fill();
         } else {
-          // Sodium Highway Streetlight
           ctx.fillStyle = '#6e7681';
           ctx.fillRect(px - 2, prop.y - 2, 4, 4);
           if (state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK' || state.timeOfDay === 'SUNSET') {
             const glowX = prop.side === 'left' ? ROAD_LEFT + 14 : ROAD_LEFT + ROAD_WIDTH - 14;
-            const lampGrad = ctx.createRadialGradient(glowX, prop.y, 2, glowX, prop.y, 44);
-            lampGrad.addColorStop(0, 'rgba(251, 191, 36, 0.32)');
+            const lampGrad = ctx.createRadialGradient(glowX, prop.y, 2, glowX, prop.y, 40);
+            lampGrad.addColorStop(0, 'rgba(251, 191, 36, 0.22)');
             lampGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
             ctx.fillStyle = lampGrad;
             ctx.beginPath();
-            ctx.arc(glowX, prop.y, 44, 0, Math.PI * 2);
+            ctx.arc(glowX, prop.y, 40, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -1196,9 +1196,13 @@
       ctx.fillStyle = roadColor;
       ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
 
-      // Wet road sheen when raining
+      // Subtle atmospheric tint on asphalt (warm sunset or wet monsoon sheen)
+      if (state.timeOfDay === 'SUNSET') {
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.06)';
+        ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
+      }
       if (state.raining) {
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.06)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.05)';
         ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
       }
 
@@ -1260,14 +1264,14 @@
       });
       ctx.globalAlpha = 1;
 
-      // Monsoon Rain Streaks
+      // Balanced Monsoon Rain Streaks
       if (state.raining) {
-        ctx.strokeStyle = 'rgba(186, 230, 253, 0.45)';
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = 'rgba(186, 230, 253, 0.30)';
+        ctx.lineWidth = 1.1;
         rainDrops.forEach((r) => {
           ctx.beginPath();
           ctx.moveTo(r.x, r.y);
-          ctx.lineTo(r.x - 2, r.y + r.len);
+          ctx.lineTo(r.x - 1.6, r.y + r.len);
           ctx.stroke();
         });
       }
