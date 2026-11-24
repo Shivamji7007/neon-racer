@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v8.1 — Studio QA Release</title>
+  <title>Highway Rush v8.2 — Pro Studio Title Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
-      background: #0d1117;
+      background: radial-gradient(circle at top, #161b22 0%, #090c10 100%);
       color: #f0f6fc;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
@@ -35,8 +35,10 @@
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
+      transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
     }
     button:hover { border-color: #58a6ff; }
+    button:active { transform: scale(0.97); }
     button.active {
       background: #1f6feb;
       border-color: #58a6ff;
@@ -62,39 +64,232 @@
       justify-content: center;
       align-items: center;
     }
-    canvas {
+    canvas#game {
       border: 3px solid #30363d;
-      border-radius: 8px;
+      border-radius: 10px;
       background: #161b22;
       max-width: 100%;
       height: auto;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
     }
+    /* Pro Studio Glassmorphic Home Screen */
     .overlay {
       position: absolute;
       inset: 0;
-      background: #0d1117;
+      background: linear-gradient(180deg, rgba(13, 17, 23, 0.78) 0%, rgba(13, 17, 23, 0.92) 55%, rgba(13, 17, 23, 0.97) 100%);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       border: 2px solid #30363d;
-      border-radius: 8px;
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 14px;
+      justify-content: space-between;
+      padding: 14px 14px 12px 14px;
       text-align: center;
       z-index: 10;
       overflow-y: auto;
     }
-    .overlay h1 { font-size: 20px; color: #ffa657; margin-bottom: 3px; }
-    .overlay p.sub { font-size: 11px; color: #8b949e; margin-bottom: 9px; }
-    .menu-group { margin-bottom: 8px; width: 100%; }
-    .menu-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 4px; }
-    .btn-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
-    .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
-    .swatch.selected { border: 3px solid #ffffff; transform: scale(1.12); }
-    .green-btn { background: #238636; border-color: #2ea043; font-size: 13px; padding: 7px 15px; }
-    .green-btn:hover { background: #2ea043; }
+    .solid-overlay {
+      background: #0d1117;
+      justify-content: center;
+    }
+    .title-badge {
+      display: inline-block;
+      background: rgba(255, 166, 87, 0.14);
+      border: 1px solid rgba(255, 166, 87, 0.45);
+      color: #ffa657;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 1.6px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      margin-bottom: 4px;
+    }
+    .hero-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      line-height: 1.1;
+      background: linear-gradient(90deg, #ffffff 0%, #ffa657 55%, #facc15 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 18px rgba(255, 166, 87, 0.25);
+    }
+    .hero-sub {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+    .driver-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 5px 9px;
+      gap: 6px;
+    }
+    .driver-bar label {
+      font-size: 10px;
+      font-weight: 800;
+      color: #8b949e;
+      letter-spacing: 0.6px;
+    }
+    input.text-input {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      color: #f0f6fc;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      width: 130px;
+      user-select: text;
+    }
+    .coin-pill {
+      background: rgba(250, 204, 21, 0.14);
+      border: 1px solid rgba(250, 204, 21, 0.4);
+      color: #facc15;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    /* Active Car Showcase Card */
+    .showcase-card {
+      width: 100%;
+      background: linear-gradient(135deg, rgba(22, 27, 34, 0.95) 0%, rgba(33, 38, 45, 0.85) 100%);
+      border: 1.5px solid #30363d;
+      border-radius: 9px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+    }
+    #carPreviewCanvas {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      flex-shrink: 0;
+    }
+    .showcase-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .showcase-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .showcase-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .swatch-row {
+      display: flex;
+      gap: 5px;
+    }
+    .swatch {
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      border: 1.5px solid #30363d;
+      cursor: pointer;
+    }
+    .swatch.selected {
+      border: 2px solid #ffffff;
+      transform: scale(1.15);
+    }
+    .mini-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #8b949e;
+    }
+    .mini-stat span.lbl { width: 48px; }
+    .mini-track {
+      flex: 1;
+      height: 5px;
+      background: #0d1117;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mini-fill { height: 100%; }
+    /* Segmented Pill Controls */
+    .pill-section {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .pill-row {
+      display: flex;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .pill-row button {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-radius: 5px;
+      padding: 4px 4px;
+      font-size: 10px;
+      color: #8b949e;
+    }
+    .pill-row button.active {
+      background: #1f6feb;
+      color: #ffffff;
+    }
+    /* Hero Play & Secondary Actions */
+    .cta-stack {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hero-play-btn {
+      width: 100%;
+      background: linear-gradient(180deg, #2ea043 0%, #238636 100%);
+      border: 1px solid #3fb950;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(46, 160, 67, 0.35);
+    }
+    .hero-play-btn:hover {
+      background: linear-gradient(180deg, #3fb950 0%, #2ea043 100%);
+    }
+    .secondary-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      width: 100%;
+    }
+    .sec-btn {
+      padding: 7px 6px;
+      font-size: 11px;
+      border-radius: 7px;
+    }
     .gold-btn { background: #9a6700; border-color: #d29922; color: #fff; }
     .gold-btn:hover { background: #bb8009; }
+    .blue-btn { background: #1f6feb; border-color: #58a6ff; color: #fff; }
+    .green-btn { background: #238636; border-color: #2ea043; font-size: 13px; padding: 7px 15px; }
     .garage-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -136,18 +331,9 @@
       padding: 7px 4px;
       border-bottom: 1px solid #21262d;
     }
-    input.text-input {
-      background: #161b22;
-      border: 1.5px solid #30363d;
-      border-radius: 6px;
-      color: #f0f6fc;
-      padding: 5px 10px;
-      font-size: 13px;
-      font-weight: 700;
-      text-align: center;
-      width: 170px;
-      user-select: text;
-    }
+    .menu-group { margin-bottom: 8px; width: 100%; }
+    .menu-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 4px; }
+    .btn-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
     input.code-input {
       background: #161b22;
       border: 2px solid #30363d;
@@ -197,7 +383,7 @@
     <button id="btnGarage" class="gold-btn">GARAGE</button>
     <button id="btnRanks">RANKS</button>
     <button id="btnSound">SOUND: ON</button>
-    <button id="btnMenu">SETUP</button>
+    <button id="btnMenu">HOME</button>
   </div>
 
   <div id="hud">
@@ -213,34 +399,56 @@
   <div id="gameWrap">
     <canvas id="game" width="420" height="560"></canvas>
 
-    <!-- SETUP MENU -->
+    <!-- PRO STUDIO HOME SCREEN OVERLAY -->
     <div id="startOverlay" class="overlay">
-      <h1>NH-44 HIGHWAY RUSH</h1>
-      <p class="sub">v8.1 QA Verified: Rival AI, Police Chase & Hall of Fame</p>
-
-      <div class="menu-group">
-        <div class="menu-label">Driver Name (For Leaderboard)</div>
-        <input id="driverNameInput" class="text-input" maxlength="14" placeholder="Driver Name" />
+      <div>
+        <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.2</div>
+        <div class="hero-title">NH-44 HIGHWAY RUSH</div>
+        <div class="hero-sub">High-Speed Arcade • Rival AI • Online Multiplayer</div>
       </div>
 
-      <div class="menu-group">
-        <div class="menu-label">Active Car: <strong id="activeCarName" style="color:#3fb950;">Swift GT</strong></div>
-        <div class="btn-row" id="p1Colors">
-          <div class="swatch selected" data-color="#2f81f7" style="background:#2f81f7;"></div>
-          <div class="swatch" data-color="#f85149" style="background:#f85149;"></div>
-          <div class="swatch" data-color="#f0883e" style="background:#f0883e;"></div>
-          <div class="swatch" data-color="#a371f7" style="background:#a371f7;"></div>
+      <div class="driver-bar">
+        <label for="driverNameInput">DRIVER</label>
+        <input id="driverNameInput" class="text-input" maxlength="14" placeholder="Driver Name" />
+        <div class="coin-pill" id="homeCoinsPill">₹ 0</div>
+      </div>
+
+      <!-- Active Car Showcase Card with Live Preview Canvas -->
+      <div class="showcase-card">
+        <canvas id="carPreviewCanvas" width="64" height="84"></canvas>
+        <div class="showcase-info">
+          <div class="showcase-top">
+            <span class="showcase-name" id="activeCarName">Swift GT</span>
+            <div class="swatch-row" id="p1Colors">
+              <div class="swatch selected" data-color="#2f81f7" style="background:#2f81f7;"></div>
+              <div class="swatch" data-color="#f85149" style="background:#f85149;"></div>
+              <div class="swatch" data-color="#f0883e" style="background:#f0883e;"></div>
+              <div class="swatch" data-color="#a371f7" style="background:#a371f7;"></div>
+            </div>
+          </div>
+          <div class="mini-stat">
+            <span class="lbl">SPEED</span>
+            <div class="mini-track"><div class="mini-fill" id="prevSpdBar" style="width:60%;background:#ffa657;"></div></div>
+          </div>
+          <div class="mini-stat">
+            <span class="lbl">HANDLING</span>
+            <div class="mini-track"><div class="mini-fill" id="prevHndBar" style="width:68%;background:#58a6ff;"></div></div>
+          </div>
+          <div class="mini-stat" style="margin-bottom:0;">
+            <span class="lbl">NITRO</span>
+            <div class="mini-track"><div class="mini-fill" id="prevNitBar" style="width:60%;background:#3fb950;"></div></div>
+          </div>
         </div>
       </div>
 
-      <div class="menu-group">
-        <div class="menu-label">Difficulty & Weather</div>
-        <div class="btn-row" id="diffRow" style="margin-bottom:5px;">
+      <!-- Difficulty & Weather Segmented Pills -->
+      <div class="pill-section">
+        <div class="pill-row" id="diffRow">
           <button data-diff="easy">EASY</button>
           <button data-diff="medium" class="active">MEDIUM</button>
           <button data-diff="hard">HARD</button>
         </div>
-        <div class="btn-row" id="weatherRow">
+        <div class="pill-row" id="weatherRow">
           <button data-weather="dynamic" class="active">DYNAMIC</button>
           <button data-weather="day">DAY</button>
           <button data-weather="night">NIGHT</button>
@@ -248,25 +456,29 @@
         </div>
       </div>
 
-      <div class="btn-row" style="margin-top:4px;">
-        <button id="startBtn" class="green-btn">START RACE</button>
-        <button id="openGarageBtn" class="gold-btn" style="padding:7px 12px;">GARAGE</button>
-        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:7px 11px;">ONLINE</button>
+      <!-- Primary & Secondary Call-To-Action Buttons -->
+      <div class="cta-stack">
+        <button id="startBtn" class="hero-play-btn">▶ START RACE</button>
+        <div class="secondary-row">
+          <button id="openGarageBtn" class="sec-btn gold-btn">GARAGE</button>
+          <button id="openOnlineBtn" class="sec-btn blue-btn">PLAY ONLINE</button>
+          <button id="openRanksBtn" class="sec-btn">HALL OF FAME</button>
+        </div>
       </div>
     </div>
 
     <!-- GARAGE OVERLAY -->
-    <div id="garageOverlay" class="overlay" style="display:none;">
-      <h1>NH-44 GARAGE</h1>
-      <p class="sub">Bank Balance: <strong id="garageCoins" style="color:#facc15;">0 Coins</strong> • Collect coins on highway!</p>
+    <div id="garageOverlay" class="overlay solid-overlay" style="display:none;">
+      <h1 style="font-size:20px;color:#ffa657;margin-bottom:3px;">NH-44 GARAGE</h1>
+      <p class="hero-sub" style="margin-bottom:10px;">Bank Balance: <strong id="garageCoins" style="color:#facc15;">0 Coins</strong> • Collect coins on highway!</p>
       <div class="garage-grid" id="garageGrid"></div>
       <button id="closeGarageBtn" class="green-btn" style="padding:6px 22px;">DONE</button>
     </div>
 
     <!-- TOP-5 LEADERBOARD OVERLAY -->
-    <div id="ranksOverlay" class="overlay" style="display:none;">
-      <h1>NH-44 HALL OF FAME</h1>
-      <p class="sub">Top-5 Saved Highway Records</p>
+    <div id="ranksOverlay" class="overlay solid-overlay" style="display:none;">
+      <h1 style="font-size:20px;color:#ffa657;margin-bottom:3px;">NH-44 HALL OF FAME</h1>
+      <p class="hero-sub" style="margin-bottom:8px;">Top-5 Saved Highway Records</p>
       <table class="lb-table">
         <thead>
           <tr>
@@ -283,9 +495,9 @@
     </div>
 
     <!-- ONLINE INVITATION CODE LOBBY -->
-    <div id="onlineOverlay" class="overlay" style="display:none;">
-      <h1>ONLINE ROOM</h1>
-      <p class="sub">Create a room code & share with your friend</p>
+    <div id="onlineOverlay" class="overlay solid-overlay" style="display:none;">
+      <h1 style="font-size:20px;color:#ffa657;margin-bottom:3px;">ONLINE ROOM</h1>
+      <p class="hero-sub" style="margin-bottom:10px;">Create a room code & share with your friend</p>
 
       <div class="menu-group">
         <button id="createRoomBtn" class="green-btn">CREATE ROOM CODE</button>
@@ -303,7 +515,7 @@
         <div class="menu-label">Or Enter Friend's Code:</div>
         <div class="btn-row">
           <input id="joinCodeInput" class="code-input" inputmode="numeric" maxlength="6" placeholder="e.g. 4821" />
-          <button id="joinRoomBtn" style="background:#1f6feb;border-color:#58a6ff;padding:7px 14px;">JOIN ROOM</button>
+          <button id="joinRoomBtn" class="blue-btn" style="padding:7px 14px;">JOIN ROOM</button>
         </div>
         <p id="joinStatus" style="font-size:12px; color:#8b949e; margin-top:6px;"></p>
       </div>
@@ -326,6 +538,8 @@
   <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
+    const previewCanvas = document.getElementById('carPreviewCanvas');
+    const pCtx = previewCanvas.getContext('2d');
 
     const btn1P = document.getElementById('btn1P');
     const btn2P = document.getElementById('btn2P');
@@ -342,6 +556,7 @@
     const startBtn = document.getElementById('startBtn');
     const openGarageBtn = document.getElementById('openGarageBtn');
     const closeGarageBtn = document.getElementById('closeGarageBtn');
+    const openRanksBtn = document.getElementById('openRanksBtn');
     const closeRanksBtn = document.getElementById('closeRanksBtn');
     const openOnlineBtn = document.getElementById('openOnlineBtn');
     const closeOnlineBtn = document.getElementById('closeOnlineBtn');
@@ -353,6 +568,7 @@
     const p2ScoreEl = document.getElementById('p2Score');
     const p2ScoreBox = document.getElementById('p2ScoreBox');
     const coinsHudEl = document.getElementById('coinsHud');
+    const homeCoinsPill = document.getElementById('homeCoinsPill');
     const bestEl = document.getElementById('best');
     const p1NitroEl = document.getElementById('p1Nitro');
     const p2NitroEl = document.getElementById('p2Nitro');
@@ -370,7 +586,7 @@
       b.addEventListener('click', () => b.blur());
     });
 
-    // --- DRIVER NAME & TOP-5 LEADERBOARD (XSS-Safe DOM rendering) ---
+    // --- DRIVER NAME & TOP-5 LEADERBOARD ---
     let driverName = localStorage.getItem('highwayRushDriver') || 'Shivam';
     driverNameInput.value = driverName;
     driverNameInput.addEventListener('input', () => {
@@ -397,7 +613,6 @@
       localStorage.setItem('highwayRushLeaderboard', JSON.stringify(leaderboard));
     }
 
-    // Fix BUG-04: Use safe textContent cells instead of raw HTML interpolation
     function renderLeaderboard() {
       const body = document.getElementById('ranksBody');
       body.innerHTML = '';
@@ -453,8 +668,65 @@
     let equippedCarId = localStorage.getItem('highwayRushEquipped') || 'swift';
     if (!unlockedCars.includes(equippedCarId)) equippedCarId = 'swift';
 
+    let selectedColor = '#2f81f7';
+
     function getCarSpec(id) {
       return CARS.find((c) => c.id === id) || CARS[0];
+    }
+
+    function renderCarPreviewCard() {
+      const spec = getCarSpec(equippedCarId);
+      activeCarNameEl.textContent = spec.name;
+      document.getElementById('prevSpdBar').style.width = `${spec.spdPct}%`;
+      document.getElementById('prevHndBar').style.width = `${spec.hndPct}%`;
+      document.getElementById('prevNitBar').style.width = `${spec.nitPct}%`;
+
+      pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+      // Mini road stripes
+      pCtx.fillStyle = '#161b22';
+      pCtx.fillRect(0, 0, 64, 84);
+      pCtx.strokeStyle = 'rgba(255,255,255,0.18)';
+      pCtx.setLineDash([8, 8]);
+      pCtx.beginPath(); pCtx.moveTo(32, 0); pCtx.lineTo(32, 84); pCtx.stroke();
+      pCtx.setLineDash([]);
+
+      // Glow & Headlights
+      const grad = pCtx.createLinearGradient(32, 22, 32, 0);
+      grad.addColorStop(0, 'rgba(254, 240, 138, 0.38)');
+      grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+      pCtx.fillStyle = grad;
+      pCtx.beginPath();
+      pCtx.moveTo(20, 22); pCtx.lineTo(8, 0); pCtx.lineTo(56, 0); pCtx.lineTo(44, 22);
+      pCtx.fill();
+
+      const w = spec.bodyStyle === 'suv' ? 32 : 30;
+      const h = 54;
+      const x = (64 - w) / 2;
+      const y = 20;
+
+      pCtx.shadowColor = selectedColor;
+      pCtx.shadowBlur = 12;
+      pCtx.fillStyle = selectedColor;
+      pCtx.beginPath();
+      pCtx.roundRect(x, y, w, h, spec.bodyStyle === 'suv' ? 4 : 7);
+      pCtx.fill();
+      pCtx.shadowBlur = 0;
+
+      pCtx.fillStyle = '#0d1117';
+      pCtx.fillRect(x + 4, y + 11, w - 8, 12);
+      pCtx.fillRect(x + 5, y + h - 16, w - 10, 8);
+
+      if (spec.bodyStyle === 'suv') {
+        pCtx.fillStyle = '#161b22';
+        pCtx.fillRect(x + 3, y + 25, w - 6, 12);
+      } else if (spec.bodyStyle === 'hyper') {
+        pCtx.fillStyle = '#facc15';
+        pCtx.fillRect(x + w / 2 - 4, y + 3, 2.5, h - 6);
+        pCtx.fillRect(x + w / 2 + 1.5, y + 3, 2.5, h - 6);
+      } else {
+        pCtx.fillStyle = '#ffffff';
+        pCtx.fillRect(x + w / 2 - 2, y + 3, 4, h - 6);
+      }
     }
 
     function saveEconomy() {
@@ -462,7 +734,8 @@
       localStorage.setItem('highwayRushUnlocked', JSON.stringify(unlockedCars));
       localStorage.setItem('highwayRushEquipped', equippedCarId);
       coinsHudEl.textContent = Math.floor(totalCoins);
-      activeCarNameEl.textContent = getCarSpec(equippedCarId).name;
+      homeCoinsPill.textContent = `₹ ${Math.floor(totalCoins)}`;
+      renderCarPreviewCard();
     }
     saveEconomy();
 
@@ -535,7 +808,6 @@
     let mode = '1p';
     let muted = false;
     let gameStarted = false;
-    let selectedColor = '#2f81f7';
     let p2Color = '#3fb950';
     let p2CarId = 'swift';
     let difficulty = 'medium';
@@ -680,7 +952,6 @@
         document.getElementById('hostStatus').textContent = 'Friend connected! Starting race...';
         conn.on('data', (data) => {
           if (data.type === 'input') guestInput = data.keys;
-          // Fix BUG-03: Sync Guest's chosen car color & Garage car stats
           if (data.type === 'guestProfile') {
             if (data.color) p2Color = data.color;
             if (data.carId) p2CarId = data.carId;
@@ -822,13 +1093,15 @@
       startOverlay.style.display = 'flex';
     });
 
-    btnRanks.addEventListener('click', () => {
+    function openRanks() {
       gameStarted = false;
       if (engineGain) engineGain.gain.value = 0;
       hideAllOverlays();
       renderLeaderboard();
       ranksOverlay.style.display = 'flex';
-    });
+    }
+    btnRanks.addEventListener('click', openRanks);
+    openRanksBtn.addEventListener('click', openRanks);
     closeRanksBtn.addEventListener('click', () => {
       hideAllOverlays();
       startOverlay.style.display = 'flex';
@@ -857,6 +1130,7 @@
         document.querySelectorAll('#p1Colors .swatch').forEach((s) => s.classList.remove('selected'));
         el.classList.add('selected');
         selectedColor = el.dataset.color;
+        renderCarPreviewCard();
         if (mode === 'guest' && conn && conn.open) {
           conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
         } else {
@@ -927,7 +1201,6 @@
       if (state.gameOver && gameStarted) triggerRestart();
     });
 
-    // Fix BUG-06: Cleanly allow Spacebar to start from Setup if no input is focused
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
@@ -1013,8 +1286,59 @@
       updateHudFromState();
     }
 
+    // --- LIVE ANIMATED BACKGROUND DEMO ON HOME SCREEN ---
+    function updateAttractDemo() {
+      const demoSpd = 4.5;
+      state.roadOffset = (state.roadOffset + demoSpd) % 48;
+      state.distanceKm += demoSpd * 0.002;
+      state.timeOfDay = 'NIGHT';
+      state.raining = false;
+
+      roadProps.forEach((prop) => {
+        prop.y += demoSpd;
+        if (prop.y > canvas.height + 50) prop.y = -50;
+      });
+
+      state.spawnTimer++;
+      if (state.spawnTimer >= 46) {
+        spawnTraffic();
+        state.spawnTimer = 0;
+      }
+
+      const p1 = state.players[0];
+      if (p1) {
+        // Auto-steer showcase car smoothly into open lanes
+        const curLane = Math.max(0, Math.min(LANES - 1, Math.floor((p1.x + p1.w / 2 - ROAD_LEFT) / LANE_WIDTH)));
+        const danger = state.traffic.some((v) => {
+          const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
+          return vLane === curLane && v.y > 180 && v.y < p1.y + 40;
+        });
+        if (danger) {
+          for (let l = 0; l < LANES; l++) {
+            const safe = !state.traffic.some((v) => {
+              const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
+              return vLane === l && v.y > 160 && v.y < p1.y + 40;
+            });
+            if (safe) {
+              const targetX = ROAD_LEFT + l * LANE_WIDTH + (LANE_WIDTH - p1.w) / 2;
+              p1.vx = (targetX - p1.x) * 0.14;
+              break;
+            }
+          }
+        } else {
+          p1.vx *= 0.85;
+        }
+        p1.x += p1.vx;
+        p1.tilt = Math.max(-0.15, Math.min(0.15, p1.vx * 0.025));
+      }
+
+      for (let i = state.traffic.length - 1; i >= 0; i--) {
+        state.traffic[i].y += demoSpd - state.traffic[i].speed * 0.35;
+        if (state.traffic[i].y > canvas.height + 120) state.traffic.splice(i, 1);
+      }
+    }
+
     // --- PHASE 4: RIVAL AI RACER & POLICE INTERCEPTOR ---
-    // Fix BUG-01: Pick an unoccupied lane when spawning Rival AI
     function spawnRivalAI() {
       const openLanes = [];
       for (let l = 0; l < LANES; l++) {
@@ -1360,6 +1684,7 @@
       p1ScoreEl.textContent = p1.score;
       p1NitroEl.textContent = `${Math.round(p1.nitro)}%`;
       coinsHudEl.textContent = Math.floor(totalCoins + p1.runCoins);
+      homeCoinsPill.textContent = `₹ ${Math.floor(totalCoins + p1.runCoins)}`;
       if (p2) {
         p2ScoreEl.textContent = p2.score;
         p2NitroEl.textContent = `${Math.round(p2.nitro)}%`;
@@ -1438,8 +1763,11 @@
     }
 
     function update() {
+      if (!gameStarted) {
+        updateAttractDemo();
+        return;
+      }
       updateLocalVfx();
-      if (!gameStarted) return;
 
       if (mode === 'guest') {
         if (engineOsc && !muted && !state.gameOver) {
@@ -1549,7 +1877,6 @@
       }
       updateRivalAI(currentSpeed);
 
-      // Fix BUG-02: Avoid spawning Police pursuit directly inside a Toll Plaza wave
       if (!state.police && state.distanceKm >= state.nextPoliceKm && state.tollBannerY < -80) {
         spawnPoliceChase();
         state.nextPoliceKm += 6.5;
@@ -1837,7 +2164,7 @@
         ctx.fillText(pop.text, pop.x + 18, pop.y);
       });
 
-      if (state.gameOver) {
+      if (state.gameOver && gameStarted) {
         ctx.fillStyle = 'rgba(13, 17, 23, 0.86)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#ff7b72';
@@ -1873,6 +2200,7 @@
 
     initPropsAndRain();
     resetGame();
+    renderCarPreviewCard();
     loop();
   </script>
 </body>
