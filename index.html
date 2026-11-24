@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v8.0 — Phase 4: Rival AI, Police Chase & Leaderboard</title>
+  <title>Highway Rush v8.1 — Studio QA Release</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -216,7 +216,7 @@
     <!-- SETUP MENU -->
     <div id="startOverlay" class="overlay">
       <h1>NH-44 HIGHWAY RUSH</h1>
-      <p class="sub">Phase 4: Rival AI, Police Chase & Hall of Fame</p>
+      <p class="sub">v8.1 QA Verified: Rival AI, Police Chase & Hall of Fame</p>
 
       <div class="menu-group">
         <div class="menu-label">Driver Name (For Leaderboard)</div>
@@ -370,7 +370,7 @@
       b.addEventListener('click', () => b.blur());
     });
 
-    // --- DRIVER NAME & TOP-5 LEADERBOARD ---
+    // --- DRIVER NAME & TOP-5 LEADERBOARD (XSS-Safe DOM rendering) ---
     let driverName = localStorage.getItem('highwayRushDriver') || 'Shivam';
     driverNameInput.value = driverName;
     driverNameInput.addEventListener('input', () => {
@@ -397,23 +397,38 @@
       localStorage.setItem('highwayRushLeaderboard', JSON.stringify(leaderboard));
     }
 
+    // Fix BUG-04: Use safe textContent cells instead of raw HTML interpolation
     function renderLeaderboard() {
       const body = document.getElementById('ranksBody');
       body.innerHTML = '';
       if (leaderboard.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="color:#8b949e;padding:18px;">No races recorded yet. Finish a run to set a record!</td></tr>';
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.style.color = '#8b949e';
+        td.style.padding = '18px';
+        td.textContent = 'No races recorded yet. Finish a run to set a record!';
+        tr.appendChild(td);
+        body.appendChild(tr);
         return;
       }
       leaderboard.forEach((entry, idx) => {
         const tr = document.createElement('tr');
         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
-        tr.innerHTML = `
-          <td><strong>${medal}</strong></td>
-          <td style="color:#f0f6fc;font-weight:700;">${entry.name}</td>
-          <td style="color:#8b949e;">${entry.car}</td>
-          <td style="color:#3fb950;">${entry.dist}</td>
-          <td style="color:#ffa657;font-weight:800;">${entry.score}</td>
-        `;
+        const cells = [
+          { text: medal, color: '#f0f6fc', bold: true },
+          { text: entry.name, color: '#f0f6fc', bold: true },
+          { text: entry.car, color: '#8b949e', bold: false },
+          { text: entry.dist, color: '#3fb950', bold: false },
+          { text: String(entry.score), color: '#ffa657', bold: true },
+        ];
+        cells.forEach((c) => {
+          const td = document.createElement('td');
+          td.textContent = c.text;
+          td.style.color = c.color;
+          if (c.bold) td.style.fontWeight = '700';
+          tr.appendChild(td);
+        });
         body.appendChild(tr);
       });
     }
@@ -522,6 +537,7 @@
     let gameStarted = false;
     let selectedColor = '#2f81f7';
     let p2Color = '#3fb950';
+    let p2CarId = 'swift';
     let difficulty = 'medium';
     let weatherPref = 'dynamic';
 
@@ -664,9 +680,18 @@
         document.getElementById('hostStatus').textContent = 'Friend connected! Starting race...';
         conn.on('data', (data) => {
           if (data.type === 'input') guestInput = data.keys;
-          if (data.type === 'guestColor' && data.color) {
-            p2Color = data.color;
-            if (state && state.players[1]) state.players[1].color = p2Color;
+          // Fix BUG-03: Sync Guest's chosen car color & Garage car stats
+          if (data.type === 'guestProfile') {
+            if (data.color) p2Color = data.color;
+            if (data.carId) p2CarId = data.carId;
+            if (state && state.players[1]) {
+              const spec = getCarSpec(p2CarId);
+              state.players[1].color = p2Color;
+              state.players[1].bodyStyle = spec.bodyStyle;
+              state.players[1].handling = spec.handling;
+              state.players[1].nitroDrain = spec.nitroDrain;
+              state.players[1].nitroRegen = spec.nitroRegen;
+            }
           }
           if (data.type === 'restart' && state.gameOver) {
             resetGame();
@@ -681,8 +706,7 @@
         });
         setTimeout(() => {
           setActiveMode('host');
-          onlineOverlay.style.display = 'none';
-          startOverlay.style.display = 'none';
+          hideAllOverlays();
           initAudio();
           gameStarted = true;
           resetGame();
@@ -707,10 +731,9 @@
         conn = peer.connect('nh44-rush-' + code);
         conn.on('open', () => {
           document.getElementById('joinStatus').textContent = 'Connected! Race starting...';
-          conn.send({ type: 'guestColor', color: selectedColor });
+          conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
           setActiveMode('guest');
-          onlineOverlay.style.display = 'none';
-          startOverlay.style.display = 'none';
+          hideAllOverlays();
           initAudio();
           gameStarted = true;
           resetGame();
@@ -793,6 +816,9 @@
     openGarageBtn.addEventListener('click', openGarage);
     closeGarageBtn.addEventListener('click', () => {
       hideAllOverlays();
+      if (mode === 'guest' && conn && conn.open) {
+        conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
+      }
       startOverlay.style.display = 'flex';
     });
 
@@ -831,8 +857,11 @@
         document.querySelectorAll('#p1Colors .swatch').forEach((s) => s.classList.remove('selected'));
         el.classList.add('selected');
         selectedColor = el.dataset.color;
-        if (mode === 'guest' && conn && conn.open) conn.send({ type: 'guestColor', color: selectedColor });
-        else resetGame();
+        if (mode === 'guest' && conn && conn.open) {
+          conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
+        } else {
+          resetGame();
+        }
       });
     });
 
@@ -898,10 +927,15 @@
       if (state.gameOver && gameStarted) triggerRestart();
     });
 
+    // Fix BUG-06: Cleanly allow Spacebar to start from Setup if no input is focused
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
-        triggerRestart();
+        if (state.gameOver && gameStarted) {
+          triggerRestart();
+        } else if (!gameStarted && startOverlay.style.display !== 'none') {
+          startBtn.click();
+        }
       }
       keys[e.code] = true;
     });
@@ -940,7 +974,7 @@
 
       const cfg = DIFF_CONFIG[difficulty];
       const p1Spec = getCarSpec(equippedCarId);
-      const p2Spec = CARS[0];
+      const p2Spec = mode === 'host' ? getCarSpec(p2CarId) : CARS[0];
       const isMulti = mode !== '1p';
 
       const players = isMulti
@@ -980,8 +1014,19 @@
     }
 
     // --- PHASE 4: RIVAL AI RACER & POLICE INTERCEPTOR ---
+    // Fix BUG-01: Pick an unoccupied lane when spawning Rival AI
     function spawnRivalAI() {
-      const lane = Math.floor(Math.random() * LANES);
+      const openLanes = [];
+      for (let l = 0; l < LANES; l++) {
+        const occupied = state.traffic.some((v) => {
+          const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
+          return vLane === l && v.y < 170;
+        });
+        if (!occupied) openLanes.push(l);
+      }
+      if (openLanes.length === 0) return;
+
+      const lane = openLanes[Math.floor(Math.random() * openLanes.length)];
       const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - 36) / 2;
       state.rival = {
         x, y: -90, w: 36, h: 64,
@@ -996,11 +1041,10 @@
       const r = state.rival;
       if (!r) return;
 
-      // Scan ahead for oncoming traffic in Rival's current lane
       const curLane = Math.max(0, Math.min(LANES - 1, Math.floor((r.x + r.w / 2 - ROAD_LEFT) / LANE_WIDTH)));
       const blocked = state.traffic.some((v) => {
         const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
-        return vLane === curLane && Math.abs(v.y - r.y) < 155;
+        return vLane === curLane && Math.abs(v.y - r.y) < 160;
       });
 
       if (blocked) {
@@ -1009,7 +1053,7 @@
           if (cand >= 0 && cand < LANES) {
             const safe = !state.traffic.some((v) => {
               const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
-              return vLane === cand && Math.abs(v.y - r.y) < 155;
+              return vLane === cand && Math.abs(v.y - r.y) < 160;
             });
             if (safe) {
               r.targetX = ROAD_LEFT + cand * LANE_WIDTH + (LANE_WIDTH - r.w) / 2;
@@ -1023,7 +1067,6 @@
       r.x += dx * 0.14;
       r.tilt = Math.max(-0.16, Math.min(0.16, dx * 0.012));
 
-      // Rival drives slightly slower than player's top cruise speed so player can overtake
       r.y += currentSpeed - (state.baseSpeed + 1.15);
 
       const p1 = state.players[0];
@@ -1048,7 +1091,7 @@
         y: canvas.height + 60,
         w: 38,
         h: 66,
-        timer: 480, // 8 seconds pursuit at 60fps
+        timer: 480,
         sirenTick: 0,
       };
       broadcastSfx(620, 'sawtooth', 0.28, 0.09);
@@ -1063,12 +1106,10 @@
 
       cop.timer--;
       cop.sirenTick++;
-      // Siren wail every ~0.7s
       if (cop.sirenTick % 42 === 0) {
         broadcastSfx(cop.sirenTick % 84 === 0 ? 780 : 580, 'sine', 0.22, 0.045);
       }
 
-      // Pursuit positioning behind player
       const targetY = p1.boosting ? canvas.height - 42 : canvas.height - 74;
       cop.y += (targetY - cop.y) * 0.06;
       cop.x += (p1.x - cop.x) * 0.07;
@@ -1135,7 +1176,6 @@
       ctx.save();
       ctx.translate(x + w / 2, y + h / 2);
 
-      // Police headlights
       const beamGrad = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 - 95);
       beamGrad.addColorStop(0, 'rgba(147, 197, 253, 0.35)');
       beamGrad.addColorStop(1, 'rgba(147, 197, 253, 0)');
@@ -1148,13 +1188,11 @@
       ctx.closePath();
       ctx.fill();
 
-      // Black & White Patrol Chassis
       ctx.fillStyle = '#0f172a';
       ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 8); ctx.fill();
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(-w / 2 + 2, -10, w - 4, 22);
 
-      // Flashing Red & Blue Siren Bar
       const redActive = Math.floor(sirenTick / 6) % 2 === 0;
       ctx.fillStyle = redActive ? '#ef4444' : '#7f1d1d';
       ctx.shadowColor = redActive ? '#ef4444' : 'transparent';
@@ -1505,15 +1543,14 @@
         state.tollBannerY += currentSpeed;
       }
 
-      // Trigger Rival AI in 1P Solo every 3.5 KM
       if (mode === '1p' && !state.rival && state.distanceKm >= state.nextRivalKm) {
         spawnRivalAI();
         state.nextRivalKm += 3.5;
       }
       updateRivalAI(currentSpeed);
 
-      // Trigger Police Interceptor Chase every 6 KM
-      if (!state.police && state.distanceKm >= state.nextPoliceKm) {
+      // Fix BUG-02: Avoid spawning Police pursuit directly inside a Toll Plaza wave
+      if (!state.police && state.distanceKm >= state.nextPoliceKm && state.tollBannerY < -80) {
         spawnPoliceChase();
         state.nextPoliceKm += 6.5;
       }
