@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v8.4 — Pro Studio Edition</title>
-  <!-- FIX: jsDelivr fallback if unpkg is slow/blocked -->
+  <title>Highway Rush v8.5 — Clean Arcade HUD</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
     onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s);"></script>
   <style>
@@ -21,13 +20,6 @@
       overflow-y: auto;
       padding: 6px;
     }
-    #topBar {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 5px;
-      margin-bottom: 6px;
-    }
     button {
       background: #21262d;
       color: #f0f6fc;
@@ -38,7 +30,7 @@
       font-weight: 700;
       cursor: pointer;
       transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
-      touch-action: manipulation; /* FIX: no double-tap zoom on buttons */
+      touch-action: manipulation;
     }
     button:hover { border-color: #58a6ff; }
     button:active { transform: scale(0.97); }
@@ -53,13 +45,23 @@
       color: #ffffff;
     }
     button.danger-btn:hover { background: #b62324; }
+    /* Compact Top HUD Bar + 3-Dot Menu */
+    #hudBar {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 6px;
+      position: relative;
+    }
     #hud {
       display: flex;
       flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 6px;
-      font-size: 12px;
+      align-items: center;
+      gap: 9px;
+      font-size: 11px;
       font-weight: 700;
     }
     .stat span { color: #58a6ff; }
@@ -67,6 +69,55 @@
     .p1-text span { color: #58a6ff; }
     .p2-text span { color: #3fb950; }
     .env-text span { color: #ffa657; }
+    #dotsBtn {
+      width: 32px;
+      height: 28px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+      border-radius: 7px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #f0f6fc;
+      flex-shrink: 0;
+    }
+    #dotsMenu {
+      position: absolute;
+      top: 34px;
+      right: 0;
+      width: 195px;
+      background: rgba(22, 27, 34, 0.98);
+      border: 1.5px solid #30363d;
+      border-radius: 10px;
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 30;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+    }
+    .menu-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #f0f6fc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .menu-item:hover { background: #21262d; }
+    .menu-item.active-item { background: rgba(31, 111, 235, 0.25); color: #58a6ff; }
+    .menu-item.danger-item { color: #ff7b72; }
+    .menu-divider {
+      height: 1px;
+      background: #30363d;
+      margin: 2px 4px;
+    }
     #gameWrap {
       position: relative;
       display: flex;
@@ -157,7 +208,7 @@
       text-align: center;
       width: 130px;
       user-select: text;
-      -webkit-user-select: text; /* FIX: iOS Safari needs the prefixed override to allow typing */
+      -webkit-user-select: text;
     }
     .coin-pill {
       background: rgba(250, 204, 21, 0.14);
@@ -313,7 +364,7 @@
       text-transform: uppercase;
       letter-spacing: 2px;
       user-select: text;
-      -webkit-user-select: text; /* FIX: iOS Safari typing */
+      -webkit-user-select: text;
     }
     #roomCodeDisplay {
       font-size: 24px;
@@ -328,12 +379,12 @@
     }
     #touchControls { display: flex; gap: 10px; margin-top: 8px; }
     .touch-btn {
-      padding: 11px 15px;
+      padding: 12px 16px;
       font-size: 13px;
       background: #21262d;
       border: 1px solid #484f58;
       border-radius: 8px;
-      touch-action: none;                       /* FIX: no scroll/zoom while holding controls */
+      touch-action: none;
       -webkit-tap-highlight-color: transparent;
     }
     .touch-btn:active { background: #1f6feb; }
@@ -341,25 +392,36 @@
   </style>
 </head>
 <body>
-  <div id="topBar">
-    <button id="btn1P" class="active">1P SOLO</button>
-    <button id="btn2P">2P LOCAL</button>
-    <button id="btnOnline">ONLINE</button>
-    <button id="btnGarage" class="gold-btn">GARAGE</button>
-    <button id="btnRanks">RANKS</button>
-    <button id="btnSound">SOUND: ON</button>
-    <button id="btnPause" style="display:none;">⏸ PAUSE</button>
-    <button id="btnMenu" class="danger-btn">⏹ HOME</button>
-  </div>
+  <div id="hudBar">
+    <div id="hud">
+      <div class="stat p1-text">P1: <span id="p1Score">0</span></div>
+      <div class="stat p2-text" id="p2ScoreBox" style="display:none;">P2: <span id="p2Score">0</span></div>
+      <div class="stat coin-text">COINS: <span id="coinsHud">0</span></div>
+      <div class="stat">BEST: <span id="best">0</span></div>
+      <div class="stat p1-text">NITRO: <span id="p1Nitro">100%</span></div>
+      <div class="stat p2-text" id="p2NitroBox" style="display:none;">P2 NITRO: <span id="p2Nitro">100%</span></div>
+      <div class="stat env-text">ENV: <span id="envLabel">DAY</span></div>
+    </div>
 
-  <div id="hud">
-    <div class="stat p1-text">P1: <span id="p1Score">0</span></div>
-    <div class="stat p2-text" id="p2ScoreBox" style="display:none;">P2: <span id="p2Score">0</span></div>
-    <div class="stat coin-text">COINS: <span id="coinsHud">0</span></div>
-    <div class="stat">BEST: <span id="best">0</span></div>
-    <div class="stat p1-text">NITRO: <span id="p1Nitro">100%</span></div>
-    <div class="stat p2-text" id="p2NitroBox" style="display:none;">P2 NITRO: <span id="p2Nitro">100%</span></div>
-    <div class="stat env-text">ENV: <span id="envLabel">DAY • CLEAR</span></div>
+    <button id="dotsBtn" aria-label="Menu">⋮</button>
+
+    <!-- 3-DOT DROPDOWN MENU -->
+    <div id="dotsMenu">
+      <button class="menu-item" id="menuResume" style="display:none;"><span>▶ Resume Race</span></button>
+      <button class="menu-item" id="menuRestart" style="display:none;"><span>↻ Restart Run</span></button>
+      <div class="menu-divider" id="menuRaceDivider" style="display:none;"></div>
+
+      <button class="menu-item active-item" id="menu1P"><span>🏎️ 1P Solo Mode</span></button>
+      <button class="menu-item" id="menu2P"><span>👥 2P Local Split</span></button>
+      <button class="menu-item" id="menuOnline"><span>🌐 Online Room</span></button>
+      <div class="menu-divider"></div>
+
+      <button class="menu-item" id="menuGarage"><span>🛠️ Car Garage</span></button>
+      <button class="menu-item" id="menuRanks"><span>🏆 Hall of Fame</span></button>
+      <button class="menu-item" id="menuSound"><span>🔊 Sound: ON</span></button>
+      <div class="menu-divider" id="menuHomeDivider" style="display:none;"></div>
+      <button class="menu-item danger-item" id="menuHome" style="display:none;"><span>🏠 Quit to Home</span></button>
+    </div>
   </div>
 
   <div id="gameWrap">
@@ -368,7 +430,7 @@
     <!-- PRO STUDIO HOME SCREEN OVERLAY -->
     <div id="startOverlay" class="overlay">
       <div>
-        <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.4</div>
+        <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.5</div>
         <div class="hero-title">NH-44 HIGHWAY RUSH</div>
         <div class="hero-sub">High-Speed Arcade • Rival AI • Online Multiplayer</div>
       </div>
@@ -500,7 +562,6 @@
       <div class="menu-group">
         <div class="menu-label">Or Enter Friend's Code:</div>
         <div class="btn-row">
-          <!-- FIX: 4 digits only, matches the room-code format and the JS validation -->
           <input id="joinCodeInput" class="code-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="e.g. 4821" />
           <button id="joinRoomBtn" class="blue-btn" style="padding:7px 14px;">JOIN ROOM</button>
         </div>
@@ -519,7 +580,7 @@
   </div>
 
   <div id="controls">
-    Drive: <b>W A S D</b> / <b>Arrows</b> / Touch &nbsp;|&nbsp; 2P: P1 = <b>WASD</b>, P2 = <b>Arrows</b> &nbsp;|&nbsp; Pause: <b>P</b> or <b>Esc</b> &nbsp;|&nbsp; Restart: <b>Space</b>
+    Drive: <b>W A S D</b> / <b>Arrows</b> / Touch &nbsp;|&nbsp; Menu: <b>⋮</b> or <b>Esc</b> &nbsp;|&nbsp; Restart: <b>Space</b>
   </div>
 
   <script src="game.js"></script>
