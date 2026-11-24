@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Highway Rush — Keyboard Racer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #f0f6fc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #hud {
+      display: flex;
+      gap: 28px;
+      margin-bottom: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .stat span { color: #58a6ff; }
+    canvas {
+      border: 3px solid #30363d;
+      border-radius: 8px;
+      background: #161b22;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+    }
+    #controls {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #8b949e;
+    }
+    kbd {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 2px 6px;
+      color: #c9d1d9;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="stat">SCORE: <span id="score">0</span></div>
+    <div class="stat">BEST: <span id="best">0</span></div>
+    <div class="stat">SPEED: <span id="speed">120</span> KM/H</div>
+    <div class="stat">NITRO: <span id="nitro">100%</span></div>
+  </div>
+  <canvas id="game" width="420" height="640"></canvas>
+  <div id="controls">
+    Steer: <kbd>A</kbd>/<kbd>D</kbd> or <kbd>←</kbd>/<kbd>→</kbd> &nbsp;|&nbsp;
+    Boost: <kbd>W</kbd> or <kbd>↑</kbd> &nbsp;|&nbsp;
+    Brake: <kbd>S</kbd> or <kbd>↓</kbd> &nbsp;|&nbsp;
+    Restart: <kbd>Space</kbd>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    const speedEl = document.getElementById('speed');
+    const nitroEl = document.getElementById('nitro');
+
+    const ROAD_LEFT = 50;
+    const ROAD_WIDTH = 320;
+    const LANES = 4;
+    const LANE_WIDTH = ROAD_WIDTH / LANES;
+
+    let bestScore = Number(localStorage.getItem('highwayRushBest') || 0);
+    bestEl.textContent = bestScore;
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'Space' && state.gameOver) resetGame();
+    });
+    window.addEventListener('keyup', (e) => (keys[e.code] = false));
+
+    let state;
+
+    function resetGame() {
+      state = {
+        player: { x: canvas.width / 2 - 20, y: 510, w: 40, h: 72, speedX: 6.5 },
+        baseSpeed: 6,
+        score: 0,
+        nitro: 100,
+        roadOffset: 0,
+        traffic: [],
+        spawnTimer: 0,
+        gameOver: false,
+      };
+    }
+
+    function spawnTraffic() {
+      const lane = Math.floor(Math.random() * LANES);
+      const colors = ['#ff7b72', '#d2a8ff', '#ffa657', '#79c0ff', '#7ee787'];
+      const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - 40) / 2;
+      // Prevent impossible wall spawns across all lanes
+      const tooClose = state.traffic.some((car) => car.y < 140);
+      if (tooClose) return;
+
+      state.traffic.push({
+        x,
+        y: -90,
+        w: 40,
+        h: 72,
+        speed: 2.5 + Math.random() * 2.5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    function drawCar(x, y, w, h, bodyColor, isPlayer = false) {
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(x + 4, y + 6, w, h);
+
+      // Chassis
+      ctx.fillStyle = bodyColor;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 8);
+      ctx.fill();
+
+      // Windshield & rear glass
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(x + 6, y + 16, w - 12, 16);
+      ctx.fillRect(x + 7, y + h - 22, w - 14, 10);
+
+      // Racing stripe for player
+      if (isPlayer) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + w / 2 - 3, y + 4, 6, h - 8);
+      }
+
+      // Headlights / Taillights
+      ctx.fillStyle = isPlayer ? '#fef08a' : '#ff4d4d';
+      ctx.fillRect(x + 5, isPlayer ? y + 2 : y + h - 5, 8, 4);
+      ctx.fillRect(x + w - 13, isPlayer ? y + 2 : y + h - 5, 8, 4);
+    }
+
+    function checkCollision(a, b) {
+      const pad = 5;
+      return (
+        a.x + pad < b.x + b.w - pad &&
+        a.x + a.w - pad > b.x + pad &&
+        a.y + pad < b.y + b.h - pad &&
+        a.y + a.h - pad > b.y + pad
+      );
+    }
+
+    function update() {
+      if (state.gameOver) return;
+
+      const boosting = (keys['ArrowUp'] || keys['KeyW']) && state.nitro > 1;
+      const braking = keys['ArrowDown'] || keys['KeyS'];
+
+      let currentSpeed = state.baseSpeed + Math.min(state.score / 800, 7);
+      if (boosting) {
+        currentSpeed *= 1.55;
+        state.nitro = Math.max(0, state.nitro - 0.65);
+      } else {
+        state.nitro = Math.min(100, state.nitro + 0.18);
+      }
+      if (braking) currentSpeed *= 0.6;
+
+      // Steering
+      if (keys['ArrowLeft'] || keys['KeyA']) state.player.x -= state.player.speedX;
+      if (keys['ArrowRight'] || keys['KeyD']) state.player.x += state.player.speedX;
+
+      // Keep on road
+      const minX = ROAD_LEFT + 6;
+      const maxX = ROAD_LEFT + ROAD_WIDTH - state.player.w - 6;
+      state.player.x = Math.max(minX, Math.min(maxX, state.player.x));
+
+      // Road scrolling & scoring
+      state.roadOffset = (state.roadOffset + currentSpeed) % 48;
+      state.score += Math.round(currentSpeed * 0.25);
+
+      // Traffic spawning
+      state.spawnTimer++;
+      const spawnInterval = Math.max(24, 58 - Math.floor(state.score / 500));
+      if (state.spawnTimer >= spawnInterval) {
+        spawnTraffic();
+        state.spawnTimer = 0;
+      }
+
+      // Move traffic & detect crashes
+      for (let i = state.traffic.length - 1; i >= 0; i--) {
+        const car = state.traffic[i];
+        car.y += currentSpeed - car.speed * 0.45;
+
+        if (checkCollision(state.player, car)) {
+          state.gameOver = true;
+          if (state.score > bestScore) {
+            bestScore = state.score;
+            localStorage.setItem('highwayRushBest', bestScore);
+            bestEl.textContent = bestScore;
+          }
+        }
+        if (car.y > canvas.height + 100) state.traffic.splice(i, 1);
+      }
+
+      // Update HUD
+      scoreEl.textContent = state.score;
+      speedEl.textContent = Math.round(currentSpeed * 18);
+      nitroEl.textContent = `${Math.round(state.nitro)}%`;
+    }
+
+    function render() {
+      // Grass shoulders
+      ctx.fillStyle = '#132a1c';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Asphalt road
+      ctx.fillStyle = '#21262d';
+      ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
+
+      // Rumble strips
+      for (let y = -48 + state.roadOffset; y < canvas.height; y += 48) {
+        ctx.fillStyle = Math.floor((y - state.roadOffset) / 48) % 2 === 0 ? '#da3633' : '#f0f6fc';
+        ctx.fillRect(ROAD_LEFT - 8, y, 8, 24);
+        ctx.fillRect(ROAD_LEFT + ROAD_WIDTH, y, 8, 24);
+      }
+
+      // Lane dividers
+      ctx.strokeStyle = 'rgba(240, 246, 252, 0.35)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([24, 24]);
+      ctx.lineDashOffset = -state.roadOffset;
+      for (let i = 1; i < LANES; i++) {
+        const lx = ROAD_LEFT + i * LANE_WIDTH;
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, canvas.height);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Traffic & Player
+      state.traffic.forEach((car) => drawCar(car.x, car.y, car.w, car.h, car.color));
+      drawCar(state.player.x, state.player.y, state.player.w, state.player.h, '#2f81f7', true);
+
+      // Nitro exhaust flame
+      if ((keys['ArrowUp'] || keys['KeyW']) && state.nitro > 1 && !state.gameOver) {
+        ctx.fillStyle = '#ff9f1c';
+        ctx.beginPath();
+        ctx.moveTo(state.player.x + 12, state.player.y + state.player.h);
+        ctx.lineTo(state.player.x + 20, state.player.y + state.player.h + 18 + Math.random() * 8);
+        ctx.lineTo(state.player.x + 28, state.player.y + state.player.h);
+        ctx.fill();
+      }
+
+      // Game Over overlay
+      if (state.gameOver) {
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.82)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#ff7b72';
+        ctx.font = 'bold 36px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('CRASHED!', canvas.width / 2, 270);
+
+        ctx.fillStyle = '#f0f6fc';
+        ctx.font = '20px Segoe UI';
+        ctx.fillText(`Final Score: ${state.score}`, canvas.width / 2, 315);
+
+        ctx.fillStyle = '#58a6ff';
+        ctx.font = '16px Segoe UI';
+        ctx.fillText('Press SPACE to Race Again', canvas.width / 2, 360);
+      }
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    resetGame();
+    loop();
+  </script>
+</body>
+</html>
