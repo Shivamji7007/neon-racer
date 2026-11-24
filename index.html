@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v4 — Online Room Multiplayer</title>
+  <title>Highway Rush v4.1 — Online Room Multiplayer</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -115,12 +115,12 @@
     }
     #touchControls {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       margin-top: 8px;
     }
     .touch-btn {
-      padding: 12px 18px;
-      font-size: 15px;
+      padding: 12px 16px;
+      font-size: 14px;
       background: #21262d;
       border: 1px solid #484f58;
       border-radius: 8px;
@@ -218,7 +218,7 @@
   </div>
 
   <div id="controls">
-    Solo / Online: <b>W A S D</b> or <b>Arrows</b> or Touch Buttons &nbsp;|&nbsp; Restart: <b>Space</b>
+    Solo / Online: <b>W A S D</b> or <b>Arrows</b> or Touch &nbsp;|&nbsp; Restart: <b>Space</b> or Tap Screen
   </div>
 
   <script>
@@ -253,110 +253,27 @@
     const LANES = 4;
     const LANE_WIDTH = ROAD_WIDTH / LANES;
 
+    // Fix #3: Blur buttons on click so Spacebar never re-triggers the last clicked button
+    document.querySelectorAll('button').forEach((b) => {
+      b.addEventListener('click', () => b.blur());
+    });
+
     // Modes: '1p', '2p', 'host', 'guest'
     let mode = '1p';
     let muted = false;
     let gameStarted = false;
-    let p1Color = '#2f81f7';
+    let selectedColor = '#2f81f7';
     let p2Color = '#3fb950';
     let difficulty = 'medium';
 
     const DIFF_CONFIG = {
-      easy:   { baseSpeed: 5.0, spawnMin: 36, spawnStart: 68 },
-      medium: { baseSpeed: 6.2, spawnMin: 26, spawnStart: 56 },
-      hard:   { baseSpeed: 7.8, spawnMin: 19, spawnStart: 44 },
+      easy:   { baseSpeed: 5.0, spawnMin: 38, spawnStart: 70 },
+      medium: { baseSpeed: 6.2, spawnMin: 28, spawnStart: 58 },
+      hard:   { baseSpeed: 7.6, spawnMin: 22, spawnStart: 46 },
     };
 
     let bestScore = Number(localStorage.getItem('highwayRushBest') || 0);
     bestEl.textContent = bestScore;
-
-    // --- PEERJS ONLINE MULTIPLAYER ---
-    let peer = null;
-    let conn = null;
-    let guestInput = { left: false, right: false, up: false, down: false };
-
-    function cleanupPeer() {
-      if (conn) { conn.close(); conn = null; }
-      if (peer) { peer.destroy(); peer = null; }
-    }
-
-    function createOnlineRoom() {
-      cleanupPeer();
-      const code = Math.floor(1000 + Math.random() * 9000).toString();
-      const peerId = 'nh44-rush-' + code;
-      document.getElementById('hostBox').style.display = 'block';
-      document.getElementById('roomCodeDisplay').textContent = code;
-      document.getElementById('hostStatus').textContent = 'Creating room...';
-
-      peer = new Peer(peerId);
-      peer.on('open', () => {
-        document.getElementById('hostStatus').textContent = 'Room ready! Waiting for friend...';
-      });
-      peer.on('connection', (connection) => {
-        conn = connection;
-        document.getElementById('hostStatus').textContent = 'Friend connected! Starting race...';
-        conn.on('data', (data) => {
-          if (data.type === 'input') guestInput = data.keys;
-          if (data.type === 'restart' && state.gameOver) resetGame();
-        });
-        setTimeout(() => {
-          setActiveMode('host');
-          onlineOverlay.style.display = 'none';
-          startOverlay.style.display = 'none';
-          initAudio();
-          gameStarted = true;
-          resetGame();
-        }, 700);
-      });
-      peer.on('error', (err) => {
-        document.getElementById('hostStatus').textContent = 'Network error: ' + err.type;
-      });
-    }
-
-    function joinOnlineRoom() {
-      const code = document.getElementById('joinCodeInput').value.trim();
-      if (code.length < 4) {
-        document.getElementById('joinStatus').textContent = 'Enter 4-digit room code.';
-        return;
-      }
-      cleanupPeer();
-      document.getElementById('joinStatus').textContent = 'Connecting to room ' + code + '...';
-      peer = new Peer();
-      peer.on('open', () => {
-        conn = peer.connect('nh44-rush-' + code);
-        conn.on('open', () => {
-          document.getElementById('joinStatus').textContent = 'Connected! Race starting...';
-          setActiveMode('guest');
-          onlineOverlay.style.display = 'none';
-          startOverlay.style.display = 'none';
-          initAudio();
-          gameStarted = true;
-          resetGame();
-        });
-        conn.on('data', (data) => {
-          if (data.type === 'state') {
-            state = data.state;
-            updateHudFromState();
-          }
-        });
-        conn.on('close', () => {
-          alert('Host disconnected from room.');
-          setActiveMode('1p');
-        });
-      });
-      peer.on('error', () => {
-        document.getElementById('joinStatus').textContent = 'Room not found. Check code & retry.';
-      });
-    }
-
-    createRoomBtn.addEventListener('click', createOnlineRoom);
-    joinRoomBtn.addEventListener('click', joinOnlineRoom);
-    copyCodeBtn.addEventListener('click', () => {
-      const code = document.getElementById('roomCodeDisplay').textContent;
-      navigator.clipboard.writeText(code);
-      copyCodeBtn.textContent = 'COPIED!';
-      setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
-    });
 
     // --- PROCEDURAL WEB AUDIO ---
     let audioCtx = null, engineOsc = null, engineGain = null;
@@ -391,6 +308,125 @@
       osc.stop(audioCtx.currentTime + duration);
     }
 
+    // --- PEERJS ONLINE MULTIPLAYER ---
+    let peer = null;
+    let conn = null;
+    let guestInput = { left: false, right: false, up: false, down: false };
+
+    function cleanupPeer() {
+      if (conn) { conn.close(); conn = null; }
+      if (peer) { peer.destroy(); peer = null; }
+    }
+
+    function resetOnlineLobbyUI() {
+      document.getElementById('hostBox').style.display = 'none';
+      document.getElementById('roomCodeDisplay').textContent = '----';
+      document.getElementById('hostStatus').textContent = 'Waiting for friend to join...';
+      document.getElementById('joinStatus').textContent = '';
+    }
+
+    function createOnlineRoom() {
+      cleanupPeer();
+      const code = Math.floor(1000 + Math.random() * 9000).toString();
+      const peerId = 'nh44-rush-' + code;
+      document.getElementById('hostBox').style.display = 'block';
+      document.getElementById('roomCodeDisplay').textContent = code;
+      document.getElementById('hostStatus').textContent = 'Creating room...';
+
+      peer = new Peer(peerId);
+      peer.on('open', () => {
+        document.getElementById('hostStatus').textContent = 'Room ready! Waiting for friend...';
+      });
+      peer.on('connection', (connection) => {
+        conn = connection;
+        document.getElementById('hostStatus').textContent = 'Friend connected! Starting race...';
+        conn.on('data', (data) => {
+          if (data.type === 'input') guestInput = data.keys;
+          if (data.type === 'guestColor' && data.color) {
+            p2Color = data.color;
+            if (state && state.players[1]) state.players[1].color = p2Color;
+          }
+          if (data.type === 'restart' && state.gameOver) {
+            resetGame();
+            if (conn && conn.open) conn.send({ type: 'state', state });
+          }
+        });
+        conn.on('close', () => {
+          alert('Friend disconnected.');
+          setActiveMode('1p');
+        });
+        setTimeout(() => {
+          setActiveMode('host');
+          onlineOverlay.style.display = 'none';
+          startOverlay.style.display = 'none';
+          initAudio();
+          gameStarted = true;
+          resetGame();
+        }, 600);
+      });
+      peer.on('error', (err) => {
+        document.getElementById('hostStatus').textContent = 'Network error: ' + err.type;
+      });
+    }
+
+    function joinOnlineRoom() {
+      const code = document.getElementById('joinCodeInput').value.trim();
+      if (code.length < 4) {
+        document.getElementById('joinStatus').textContent = 'Enter 4-digit room code.';
+        return;
+      }
+      cleanupPeer();
+      document.getElementById('joinStatus').textContent = 'Connecting to room ' + code + '...';
+      peer = new Peer();
+      peer.on('open', () => {
+        conn = peer.connect('nh44-rush-' + code);
+        conn.on('open', () => {
+          document.getElementById('joinStatus').textContent = 'Connected! Race starting...';
+          // Fix #1: Send Guest's chosen car color to Host
+          conn.send({ type: 'guestColor', color: selectedColor });
+          setActiveMode('guest');
+          onlineOverlay.style.display = 'none';
+          startOverlay.style.display = 'none';
+          initAudio();
+          gameStarted = true;
+          resetGame();
+        });
+        conn.on('data', (data) => {
+          if (data.type === 'state') {
+            state = data.state;
+            updateHudFromState();
+          }
+          // Fix #1: Play synchronized SFX on Guest device
+          if (data.type === 'sfx') {
+            playTone(data.freq, data.wave, data.dur, data.vol);
+          }
+        });
+        conn.on('close', () => {
+          alert('Host disconnected from room.');
+          setActiveMode('1p');
+        });
+      });
+      peer.on('error', () => {
+        document.getElementById('joinStatus').textContent = 'Room not found. Check code & retry.';
+      });
+    }
+
+    function broadcastSfx(freq, wave, dur, vol) {
+      playTone(freq, wave, dur, vol);
+      if (mode === 'host' && conn && conn.open) {
+        conn.send({ type: 'sfx', freq, wave, dur, vol });
+      }
+    }
+
+    createRoomBtn.addEventListener('click', createOnlineRoom);
+    joinRoomBtn.addEventListener('click', joinOnlineRoom);
+    copyCodeBtn.addEventListener('click', () => {
+      const code = document.getElementById('roomCodeDisplay').textContent;
+      navigator.clipboard.writeText(code);
+      copyCodeBtn.textContent = 'COPIED!';
+      setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+    });
+
     // --- MODE & MENU HANDLERS ---
     function setActiveMode(newMode) {
       mode = newMode;
@@ -405,8 +441,8 @@
 
     btn1P.addEventListener('click', () => { cleanupPeer(); setActiveMode('1p'); });
     btn2P.addEventListener('click', () => { cleanupPeer(); setActiveMode('2p'); });
-    btnOnline.addEventListener('click', () => { onlineOverlay.style.display = 'flex'; });
-    openOnlineBtn.addEventListener('click', () => { onlineOverlay.style.display = 'flex'; });
+    btnOnline.addEventListener('click', () => { resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
+    openOnlineBtn.addEventListener('click', () => { resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
     closeOnlineBtn.addEventListener('click', () => { onlineOverlay.style.display = 'none'; });
 
     btnSound.addEventListener('click', () => {
@@ -425,8 +461,12 @@
       el.addEventListener('click', () => {
         document.querySelectorAll('#p1Colors .swatch').forEach((s) => s.classList.remove('selected'));
         el.classList.add('selected');
-        p1Color = el.dataset.color;
-        resetGame();
+        selectedColor = el.dataset.color;
+        if (mode === 'guest' && conn && conn.open) {
+          conn.send({ type: 'guestColor', color: selectedColor });
+        } else {
+          resetGame();
+        }
       });
     });
 
@@ -451,6 +491,15 @@
     const keys = {};
     const touchState = { left: false, right: false, up: false, down: false };
 
+    function triggerRestart() {
+      if (!state.gameOver || !gameStarted) return;
+      if (mode === 'guest' && conn && conn.open) {
+        conn.send({ type: 'restart' });
+      } else {
+        resetGame();
+      }
+    }
+
     function bindTouch(id, prop) {
       const el = document.getElementById(id);
       el.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); touchState[prop] = true; });
@@ -463,12 +512,17 @@
     bindTouch('tNitro', 'up');
     bindTouch('tBrake', 'down');
 
+    // Fix #4: Allow tapping canvas on Game Over screen to restart on mobile
+    canvas.addEventListener('click', () => {
+      if (state.gameOver && gameStarted) triggerRestart();
+    });
+
     window.addEventListener('keydown', (e) => {
-      keys[e.code] = true;
-      if (e.code === 'Space' && state.gameOver && gameStarted) {
-        if (mode === 'guest' && conn) conn.send({ type: 'restart' });
-        else resetGame();
+      if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        triggerRestart();
       }
+      keys[e.code] = true;
     });
     window.addEventListener('keyup', (e) => (keys[e.code] = false));
 
@@ -482,12 +536,13 @@
       const cfg = DIFF_CONFIG[difficulty];
       const isMulti = mode !== '1p';
       const players = isMulti
-        ? [createPlayer(ROAD_LEFT + 60, p1Color, 'P1'), createPlayer(ROAD_LEFT + 220, p2Color, 'P2')]
-        : [createPlayer(canvas.width / 2 - 18, p1Color, 'P1')];
+        ? [createPlayer(ROAD_LEFT + 60, selectedColor, 'P1'), createPlayer(ROAD_LEFT + 220, p2Color, 'P2')]
+        : [createPlayer(canvas.width / 2 - 18, selectedColor, 'P1')];
 
       state = {
         players,
         baseSpeed: cfg.baseSpeed,
+        currentSpeed: cfg.baseSpeed,
         roadOffset: 0,
         distanceKm: 0,
         nextTollKm: 5,
@@ -502,16 +557,30 @@
       };
     }
 
+    // Fix #5: Guarantee at least 1 open lane so traffic never forms an impossible wall
     function spawnTraffic() {
-      const lane = Math.floor(Math.random() * LANES);
-      if (state.traffic.some((v) => v.y < 140)) return;
+      const activeTopLanes = new Set();
+      state.traffic.forEach((v) => {
+        if (v.y < 165) {
+          const l = Math.floor((v.x - ROAD_LEFT) / LANE_WIDTH);
+          activeTopLanes.add(l);
+        }
+      });
+      if (activeTopLanes.size >= LANES - 1) return;
+
+      const availableLanes = [];
+      for (let l = 0; l < LANES; l++) {
+        if (!activeTopLanes.has(l)) availableLanes.push(l);
+      }
+      const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+
       const roll = Math.random();
-      let type = 'car', w = 36, h = 64, speed = 2.6 + Math.random() * 2;
+      let type = 'car', w = 36, h = 64, speed = 2.6 + Math.random() * 1.6;
       const carColors = ['#ff7b72', '#d2a8ff', '#79c0ff', '#e6edf3'];
       let color = carColors[Math.floor(Math.random() * carColors.length)];
 
-      if (roll < 0.25) { type = 'auto'; w = 30; h = 48; speed = 2.0; color = '#f1c40f'; }
-      else if (roll > 0.78) { type = 'truck'; w = 42; h = 94; speed = 1.8; color = '#d97706'; }
+      if (roll < 0.25) { type = 'auto'; w = 30; h = 48; speed = 2.2; color = '#f1c40f'; }
+      else if (roll > 0.78) { type = 'truck'; w = 42; h = 92; speed = 2.0; color = '#d97706'; }
 
       const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - w) / 2;
       state.traffic.push({ x, y: -110, w, h, speed, color, type, nearMissedBy: {} });
@@ -595,8 +664,13 @@
     function update() {
       if (!gameStarted) return;
 
-      // Guest sends its controls to Host and renders Host's state
       if (mode === 'guest') {
+        if (engineOsc && !muted && !state.gameOver) {
+          engineGain.gain.value = 0.02;
+          engineOsc.frequency.setTargetAtTime(48 + (state.currentSpeed || 6) * 6.5, audioCtx.currentTime, 0.05);
+        } else if (engineGain) {
+          engineGain.gain.value = 0;
+        }
         if (conn && conn.open) {
           conn.send({
             type: 'input',
@@ -641,6 +715,7 @@
       let currentSpeed = state.baseSpeed + Math.min(maxScore / 950, 6.5);
       if (p1Boost || p2Boost) currentSpeed *= 1.45;
       if ((p1.alive && p1Down) || (p2 && p2.alive && p2Down)) currentSpeed *= 0.65;
+      state.currentSpeed = currentSpeed;
 
       if (engineOsc && !muted) {
         engineGain.gain.value = 0.02;
@@ -669,7 +744,7 @@
       if (state.distanceKm >= state.nextTollKm) {
         state.tollBannerY = -60;
         state.nextTollKm += 5;
-        playTone(520, 'sine', 0.15, 0.06);
+        broadcastSfx(520, 'sine', 0.15, 0.06);
       }
       if (state.tollBannerY > -100 && state.tollBannerY < canvas.height + 80) {
         state.tollBannerY += currentSpeed;
@@ -690,7 +765,7 @@
           if (!p.alive) return;
           if (Math.hypot(p.x + p.w / 2 - orb.x, p.y + p.h / 2 - orb.y) < 40) {
             p.shield = true; collected = true;
-            playTone(660, 'sine', 0.22, 0.1);
+            broadcastSfx(660, 'sine', 0.22, 0.1);
             addPopup(p.x, p.y - 15, `${p.label} SHIELD!`, '#39d353');
           }
         });
@@ -708,7 +783,7 @@
             if (gap >= 34 && gap <= 68) {
               v.nearMissedBy[p.label] = true;
               p.score += 150;
-              playTone(880, 'triangle', 0.14, 0.07);
+              broadcastSfx(880, 'triangle', 0.14, 0.07);
               addPopup(p.x, p.y - 20, `${p.label} +150!`, '#ffa657');
             }
           }
@@ -716,11 +791,11 @@
             if (p.shield) {
               p.shield = false;
               state.traffic.splice(i, 1);
-              playTone(180, 'sawtooth', 0.25, 0.12);
+              broadcastSfx(180, 'sawtooth', 0.25, 0.12);
               addPopup(p.x, p.y - 20, 'SHIELD SAVED!', '#58a6ff');
             } else {
               p.alive = false;
-              playTone(90, 'sawtooth', 0.45, 0.16);
+              broadcastSfx(90, 'sawtooth', 0.45, 0.16);
             }
           }
         });
@@ -835,7 +910,7 @@
         }
         ctx.fillStyle = '#f0f6fc';
         ctx.font = '14px Segoe UI';
-        ctx.fillText('Press SPACE to Race Again', canvas.width / 2, 345);
+        ctx.fillText('Press SPACE or Tap Screen to Race Again', canvas.width / 2, 345);
       }
     }
 
