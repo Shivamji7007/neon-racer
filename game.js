@@ -3,7 +3,7 @@ const ctx = canvas.getContext('2d');
 const previewCanvas = document.getElementById('carPreviewCanvas');
 const pCtx = previewCanvas.getContext('2d');
 
-// FIX: roundRect polyfill for older browsers (Safari < 16, older Firefox)
+// roundRect polyfill for older browsers (Safari < 16, older Firefox)
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
   CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
     r = Math.max(0, Math.min(r || 0, w / 2, h / 2));
@@ -16,20 +16,26 @@ if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D
   };
 }
 
-// FIX: localStorage can throw (private mode / blocked storage) -> safe wrapper
+// Safe localStorage wrapper
 const store = {
   get(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (_) { return d; } },
   set(k, v) { try { localStorage.setItem(k, String(v)); } catch (_) {} },
 };
 
-const btn1P = document.getElementById('btn1P');
-const btn2P = document.getElementById('btn2P');
-const btnOnline = document.getElementById('btnOnline');
-const btnGarage = document.getElementById('btnGarage');
-const btnRanks = document.getElementById('btnRanks');
-const btnSound = document.getElementById('btnSound');
-const btnPause = document.getElementById('btnPause');
-const btnMenu = document.getElementById('btnMenu');
+// 3-Dot Menu & Dropdown Elements
+const dotsBtn = document.getElementById('dotsBtn');
+const dotsMenu = document.getElementById('dotsMenu');
+const menuResume = document.getElementById('menuResume');
+const menuRestart = document.getElementById('menuRestart');
+const menuRaceDivider = document.getElementById('menuRaceDivider');
+const menu1P = document.getElementById('menu1P');
+const menu2P = document.getElementById('menu2P');
+const menuOnline = document.getElementById('menuOnline');
+const menuGarage = document.getElementById('menuGarage');
+const menuRanks = document.getElementById('menuRanks');
+const menuSound = document.getElementById('menuSound');
+const menuHomeDivider = document.getElementById('menuHomeDivider');
+const menuHome = document.getElementById('menuHome');
 
 const startOverlay = document.getElementById('startOverlay');
 const pauseOverlay = document.getElementById('pauseOverlay');
@@ -73,7 +79,7 @@ const ROAD_WIDTH = 312;
 const LANES = 4;
 const LANE_WIDTH = ROAD_WIDTH / LANES;
 
-// FIX: dynamically created buttons (garage) were never blurred, so Space re-triggered them.
+// Blur buttons on click so Spacebar never re-triggers them
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('button');
   if (b) b.blur();
@@ -81,6 +87,35 @@ document.addEventListener('click', (e) => {
 
 const isShown = (el) => getComputedStyle(el).display !== 'none';
 const isOnline = () => mode === 'host' || mode === 'guest';
+const onlineRaceActive = () => isOnline() && gameStarted && !state.gameOver;
+
+// --- 3-DOT MENU TOGGLE & OUTSIDE CLICK CLOSE ---
+function closeDotsMenu() {
+  dotsMenu.style.display = 'none';
+}
+
+dotsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = dotsMenu.style.display === 'flex';
+  if (isOpen) {
+    closeDotsMenu();
+  } else {
+    // Auto-pause offline active race when opening 3-dot menu
+    if (gameStarted && !state.gameOver && !paused && !isOnline()) {
+      paused = true;
+      if (engineGain) engineGain.gain.value = 0;
+      pauseOverlay.style.display = 'flex';
+    }
+    syncTopNavState();
+    dotsMenu.style.display = 'flex';
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!dotsMenu.contains(e.target) && e.target !== dotsBtn) {
+    closeDotsMenu();
+  }
+});
 
 // --- DRIVER NAME & TOP-5 LEADERBOARD ---
 let driverName = store.get('highwayRushDriver', 'Shivam');
@@ -160,7 +195,6 @@ try {
   const savedUnlocked = JSON.parse(store.get('highwayRushUnlocked', '["swift"]'));
   if (Array.isArray(savedUnlocked)) unlockedCars = savedUnlocked;
 } catch (_) {}
-// FIX: sanitize saved ids (corrupt/old data could leave unknown ids or no default car)
 unlockedCars = unlockedCars.filter((id) => CARS.some((c) => c.id === id));
 if (!unlockedCars.includes('swift')) unlockedCars.unshift('swift');
 
@@ -403,7 +437,6 @@ function initAudio() {
       engineGain.connect(audioCtx.destination);
       engineOsc.start();
     }
-    // FIX: always try to resume (autoplay policy), not only on race start
     if (audioCtx.state === 'suspended') audioCtx.resume();
   } catch (_) { audioCtx = null; engineOsc = null; engineGain = null; }
 }
@@ -428,7 +461,6 @@ let conn = null;
 const NO_INPUT = () => ({ left: false, right: false, up: false, down: false });
 let guestInput = NO_INPUT();
 
-// FIX: null out refs BEFORE closing so 'close' handlers can't recurse into quitToHome
 function cleanupPeer() {
   const c = conn, p = peer;
   conn = null;
@@ -447,7 +479,7 @@ function resetOnlineLobbyUI() {
 
 function createOnlineRoom(retryCount = 0) {
   cleanupPeer();
-  initAudio(); // FIX: inside user gesture so audio works when race auto-starts
+  initAudio();
   if (typeof Peer === 'undefined') {
     document.getElementById('hostBox').style.display = 'block';
     document.getElementById('hostStatus').textContent = 'PeerJS failed to load. Check internet/adblocker.';
@@ -467,7 +499,6 @@ function createOnlineRoom(retryCount = 0) {
   });
   myPeer.on('connection', (connection) => {
     if (peer !== myPeer) { connection.close(); return; }
-    // FIX: reject extra guests instead of silently replacing the active connection
     if (conn && conn.open) { connection.close(); return; }
     conn = connection;
     document.getElementById('hostStatus').textContent = 'Friend connected! Starting race...';
@@ -497,7 +528,6 @@ function createOnlineRoom(retryCount = 0) {
       if (conn === connection) quitToHome();
     });
     setTimeout(() => {
-      // FIX: lobby may have been closed / guest left during the 600ms delay
       if (conn !== connection || !connection.open) return;
       setActiveMode('host');
       startRaceSession();
@@ -511,7 +541,7 @@ function createOnlineRoom(retryCount = 0) {
 }
 
 function joinOnlineRoom() {
-  initAudio(); // FIX: inside user gesture
+  initAudio();
   if (typeof Peer === 'undefined') {
     document.getElementById('joinStatus').textContent = 'PeerJS failed to load. Check internet/adblocker.';
     return;
@@ -566,7 +596,6 @@ function joinOnlineRoom() {
   });
 }
 
-// FIX: guest never banked coins / leaderboard / best score
 function bankGuestRun() {
   if (guestBanked || !state || !state.players[1]) return;
   guestBanked = true;
@@ -598,7 +627,6 @@ createRoomBtn.addEventListener('click', () => createOnlineRoom(0));
 joinRoomBtn.addEventListener('click', joinOnlineRoom);
 copyCodeBtn.addEventListener('click', () => {
   const code = document.getElementById('roomCodeDisplay').textContent;
-  // FIX: clipboard API can reject (insecure context / permissions)
   const done = () => {
     copyCodeBtn.textContent = 'COPIED!';
     setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
@@ -614,7 +642,7 @@ copyCodeBtn.addEventListener('click', () => {
   }
 });
 
-// --- NAVIGATION, PAUSE & QUIT HANDLERS ---
+// --- NAVIGATION, PAUSE & 3-DOT MENU HANDLERS ---
 function hideAllOverlays() {
   startOverlay.style.display = 'none';
   pauseOverlay.style.display = 'none';
@@ -625,11 +653,28 @@ function hideAllOverlays() {
 }
 
 function syncTopNavState() {
-  btnPause.style.display = gameStarted && !state.gameOver && !isOnline() ? 'inline-block' : 'none';
-  btnPause.textContent = paused ? '▶ RESUME' : '⏸ PAUSE';
+  const inOfflineRace = gameStarted && !state.gameOver && !isOnline();
+  menuResume.style.display = inOfflineRace ? 'flex' : 'none';
+  menuRestart.style.display = inOfflineRace ? 'flex' : 'none';
+  menuRaceDivider.style.display = inOfflineRace ? 'block' : 'none';
+  menuHomeDivider.style.display = gameStarted ? 'block' : 'none';
+  menuHome.style.display = gameStarted ? 'flex' : 'none';
+
+  // Hide mode/garage switches during active online match
+  const lockMidOnline = onlineRaceActive();
+  menu1P.style.display = lockMidOnline ? 'none' : 'flex';
+  menu2P.style.display = lockMidOnline ? 'none' : 'flex';
+  menuOnline.style.display = lockMidOnline ? 'none' : 'flex';
+  menuGarage.style.display = lockMidOnline ? 'none' : 'flex';
+  menuRanks.style.display = lockMidOnline ? 'none' : 'flex';
+
+  menu1P.classList.toggle('active-item', mode === '1p');
+  menu2P.classList.toggle('active-item', mode === '2p');
+  menuOnline.classList.toggle('active-item', isOnline());
 }
 
 function startRaceSession() {
+  closeDotsMenu();
   initAudio();
   hideAllOverlays();
   paused = false;
@@ -642,10 +687,9 @@ function startRaceSession() {
 
 function togglePause() {
   if (!gameStarted || state.gameOver) return;
-  // FIX: pausing in online play froze the host for both players / left stale guest input
   if (isOnline()) return;
-  // FIX: P/Esc resumed the game underneath an open garage/ranks/online overlay
   if ([startOverlay, gameOverOverlay, garageOverlay, ranksOverlay, onlineOverlay].some(isShown)) return;
+  closeDotsMenu();
   paused = !paused;
   if (paused) {
     if (engineGain) engineGain.gain.value = 0;
@@ -656,21 +700,18 @@ function togglePause() {
   syncTopNavState();
 }
 
-// FIX: auto-pause when the tab is hidden (offline modes only)
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && gameStarted && !paused && !state.gameOver && !isOnline()) togglePause();
 });
 
 function quitToHome() {
+  closeDotsMenu();
   cleanupPeer();
   paused = false;
   gameStarted = false;
   if (engineGain) engineGain.gain.value = 0;
   if (mode === 'host' || mode === 'guest') {
     mode = '1p';
-    btn1P.classList.add('active');
-    btn2P.classList.remove('active');
-    btnOnline.classList.remove('active');
     p2ScoreBox.style.display = 'none';
     p2NitroBox.style.display = 'none';
   }
@@ -681,6 +722,7 @@ function quitToHome() {
 }
 
 function showGameOverModal() {
+  closeDotsMenu();
   syncTopNavState();
   document.getElementById('goTitle').textContent = mode !== '1p' ? state.winnerText : 'CRASHED!';
   document.getElementById('goP1Score').textContent = `P1 Score: ${state.players[0].score}`;
@@ -694,7 +736,6 @@ function showGameOverModal() {
   document.getElementById('goCoinsText').textContent = mode === 'guest'
     ? (state.earnedSummary || 'Guest Run Complete!')
     : (state.earnedSummary || '');
-  // FIX: guests receive state ~60x/sec; this reset "WAITING FOR HOST..." every packet
   if (gameOverOverlay.style.display !== 'flex') goRestartBtn.textContent = '↻ RACE AGAIN';
   gameOverOverlay.style.display = 'flex';
 }
@@ -702,15 +743,14 @@ function showGameOverModal() {
 function setActiveMode(newMode) {
   mode = newMode;
   const isMulti = mode !== '1p';
-  btn1P.classList.toggle('active', mode === '1p');
-  btn2P.classList.toggle('active', mode === '2p');
-  btnOnline.classList.toggle('active', mode === 'host' || mode === 'guest');
   p2ScoreBox.style.display = isMulti ? 'block' : 'none';
   p2NitroBox.style.display = isMulti ? 'block' : 'none';
+  syncTopNavState();
   if (mode !== 'guest') resetGame();
 }
 
-btn1P.addEventListener('click', () => {
+menu1P.addEventListener('click', () => {
+  closeDotsMenu();
   cleanupPeer();
   paused = false;
   gameStarted = false;
@@ -718,9 +758,10 @@ btn1P.addEventListener('click', () => {
   hideAllOverlays();
   setActiveMode('1p');
   startOverlay.style.display = 'flex';
-  syncTopNavState();
 });
-btn2P.addEventListener('click', () => {
+
+menu2P.addEventListener('click', () => {
+  closeDotsMenu();
   cleanupPeer();
   paused = false;
   gameStarted = false;
@@ -728,13 +769,10 @@ btn2P.addEventListener('click', () => {
   hideAllOverlays();
   setActiveMode('2p');
   startOverlay.style.display = 'flex';
-  syncTopNavState();
 });
 
-// FIX: menus that pause the race are not allowed mid online-race (it can't be paused)
-const onlineRaceActive = () => isOnline() && gameStarted && !state.gameOver;
-
-btnOnline.addEventListener('click', () => {
+menuOnline.addEventListener('click', () => {
+  closeDotsMenu();
   if (onlineRaceActive()) return;
   if (gameStarted && !state.gameOver) {
     paused = true;
@@ -750,6 +788,7 @@ openOnlineBtn.addEventListener('click', () => { hideAllOverlays(); resetOnlineLo
 let returnToPausedRace = false;
 
 function openGarage() {
+  closeDotsMenu();
   if (onlineRaceActive()) return;
   returnToPausedRace = gameStarted && !state.gameOver;
   if (returnToPausedRace) paused = true;
@@ -759,7 +798,7 @@ function openGarage() {
   garageOverlay.style.display = 'flex';
   syncTopNavState();
 }
-btnGarage.addEventListener('click', openGarage);
+menuGarage.addEventListener('click', openGarage);
 openGarageBtn.addEventListener('click', openGarage);
 closeGarageBtn.addEventListener('click', () => {
   hideAllOverlays();
@@ -773,6 +812,7 @@ closeGarageBtn.addEventListener('click', () => {
 });
 
 function openRanks() {
+  closeDotsMenu();
   if (onlineRaceActive()) return;
   returnToPausedRace = gameStarted && !state.gameOver;
   if (returnToPausedRace) paused = true;
@@ -782,7 +822,7 @@ function openRanks() {
   ranksOverlay.style.display = 'flex';
   syncTopNavState();
 }
-btnRanks.addEventListener('click', openRanks);
+menuRanks.addEventListener('click', openRanks);
 openRanksBtn.addEventListener('click', openRanks);
 closeRanksBtn.addEventListener('click', () => {
   hideAllOverlays();
@@ -797,7 +837,6 @@ closeRanksBtn.addEventListener('click', () => {
 
 closeOnlineBtn.addEventListener('click', () => {
   onlineOverlay.style.display = 'none';
-  // FIX: closing the lobby left the room open, so a friend joining later hijacked the menu/1P game
   if (!isOnline()) cleanupPeer();
   if (gameStarted && !state.gameOver) {
     pauseOverlay.style.display = 'flex';
@@ -807,22 +846,28 @@ closeOnlineBtn.addEventListener('click', () => {
   }
 });
 
-btnSound.addEventListener('click', () => {
+menuSound.addEventListener('click', () => {
   muted = !muted;
-  btnSound.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
+  menuSound.innerHTML = muted ? '<span>🔇 Sound: OFF</span>' : '<span>🔊 Sound: ON</span>';
   if (engineGain) engineGain.gain.value = muted ? 0 : (gameStarted && !paused ? 0.02 : 0);
+  closeDotsMenu();
 });
 
-btnPause.addEventListener('click', togglePause);
+menuResume.addEventListener('click', togglePause);
 resumeBtn.addEventListener('click', togglePause);
-pauseRestartBtn.addEventListener('click', () => {
+
+function restartActiveRun() {
+  closeDotsMenu();
   paused = false;
   hideAllOverlays();
   resetGame();
   syncTopNavState();
-});
+}
+menuRestart.addEventListener('click', restartActiveRun);
+pauseRestartBtn.addEventListener('click', restartActiveRun);
+
+menuHome.addEventListener('click', quitToHome);
 pauseHomeBtn.addEventListener('click', quitToHome);
-btnMenu.addEventListener('click', quitToHome);
 goHomeBtn.addEventListener('click', quitToHome);
 goRestartBtn.addEventListener('click', triggerRestart);
 
@@ -837,7 +882,6 @@ document.querySelectorAll('#p1Colors .swatch').forEach((el) => {
     } else if (!(gameStarted && !state.gameOver && !paused)) {
       resetGame();
     } else {
-      // colour change mid-race: just recolour, don't wipe the run
       state.players[0].color = selectedColor;
     }
   });
@@ -904,14 +948,13 @@ bindTouch('tNitro', 'up');
 bindTouch('tBrake', 'down');
 
 window.addEventListener('keydown', (e) => {
-  // FIX: typing in the name box must not steer the car / trigger shortcuts
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-  // FIX: arrow keys scrolled the page
   if (GAME_KEYS.has(e.code)) e.preventDefault();
 
-  if (!e.repeat) {   // FIX: holding P/Esc/Space used to flicker pause / restart
+  if (!e.repeat) {
     if (e.code === 'KeyP' || e.code === 'Escape') {
-      togglePause();
+      if (dotsMenu.style.display === 'flex') closeDotsMenu();
+      else togglePause();
       return;
     }
     if (e.code === 'Space') {
@@ -939,15 +982,15 @@ function createPlayer(x, color, label, spec) {
 }
 
 function resolveAtmosphere(distanceKm) {
-  if (weatherPref === 'day') return { timeOfDay: 'DAY', raining: false, label: 'DAY • CLEAR' };
-  if (weatherPref === 'night') return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT • CLEAR' };
-  if (weatherPref === 'rain') return { timeOfDay: 'DUSK', raining: true, label: 'MONSOON RAIN' };
+  if (weatherPref === 'day') return { timeOfDay: 'DAY', raining: false, label: 'DAY' };
+  if (weatherPref === 'night') return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT' };
+  if (weatherPref === 'rain') return { timeOfDay: 'DUSK', raining: true, label: 'MONSOON' };
 
   const phase = Math.floor(distanceKm / 4) % 4;
-  if (phase === 0) return { timeOfDay: 'DAY', raining: false, label: 'DAY • CLEAR' };
-  if (phase === 1) return { timeOfDay: 'SUNSET', raining: false, label: 'SUNSET • GOLDEN' };
-  if (phase === 2) return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT • NEON' };
-  return { timeOfDay: 'NIGHT', raining: true, label: 'NIGHT • MONSOON' };
+  if (phase === 0) return { timeOfDay: 'DAY', raining: false, label: 'DAY' };
+  if (phase === 1) return { timeOfDay: 'SUNSET', raining: false, label: 'SUNSET' };
+  if (phase === 2) return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT' };
+  return { timeOfDay: 'NIGHT', raining: true, label: 'MONSOON' };
 }
 
 function resetGame() {
@@ -1170,11 +1213,7 @@ function updatePoliceChase() {
   }
 }
 
-// FIX: lane-centre-only spawning left a permanently safe strip on the lane lines
-// (lanes are 78px wide, cars ~36px -> 39px clearance vs ~31px needed to crash).
-// Now some traffic spawns aimed at the player's actual position (even between lanes),
-// and a gap check guarantees the road is never fully blocked.
-const MIN_PASS_GAP = 66; // player width (38 max) + clearance
+const MIN_PASS_GAP = 66;
 
 function hasPassableGap(extra) {
   const left = ROAD_LEFT + 4, right = ROAD_LEFT + ROAD_WIDTH - 4;
@@ -1211,7 +1250,6 @@ function spawnTraffic() {
   let x;
   const alive = gameStarted ? state.players.filter((p) => p.alive) : [];
   if (alive.length && Math.random() < 0.5) {
-    // aimed spawn: lands on the player's current column, so lane lines are no longer a safe zone
     const target = alive[Math.floor(Math.random() * alive.length)];
     const cx = target.x + target.w / 2 + (Math.random() - 0.5) * 30;
     x = Math.max(ROAD_LEFT + 4, Math.min(ROAD_LEFT + ROAD_WIDTH - w - 4, cx - w / 2));
@@ -1224,7 +1262,6 @@ function spawnTraffic() {
     x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - w) / 2;
   }
 
-  // never spawn a car that would leave no gap wide enough to drive through
   if (!hasPassableGap({ x, w })) return;
 
   state.traffic.push({ x, y: -110, w, h, speed, color, type, nearMissedBy: {} });
@@ -1437,8 +1474,6 @@ function updateHudFromState() {
   const p2 = state.players[1];
   p1ScoreEl.textContent = p1.score;
   p1NitroEl.textContent = `${Math.round(p1.nitro)}%`;
-  // FIX: guest HUD showed host's run coins; and after game over coins were counted twice
-  // (already banked into totalCoins) for one frame.
   const me = mode === 'guest' && p2 ? p2 : p1;
   const coins = state.gameOver ? totalCoins : totalCoins + me.runCoins;
   coinsHudEl.textContent = Math.floor(coins);
@@ -1570,7 +1605,6 @@ function update() {
   const p2Up = mode === 'host' ? guestInput.up : keys['ArrowUp'];
   const p2Down = mode === 'host' ? guestInput.down : keys['ArrowDown'];
 
-  // FIX: nitro flickered on/off at ~0% (regen immediately re-enabled it). Need >10% to re-engage.
   const p1Boost = p1.alive && p1Up && p1.nitro > (p1.boosting ? 1 : 10);
   const p2Boost = p2 && p2.alive && p2Up && p2.nitro > (p2.boosting ? 1 : 10);
 
@@ -1628,8 +1662,6 @@ function update() {
     state.nextTollKm += 5;
     broadcastSfx(520, 'sine', 0.15, 0.06);
   }
-  // FIX: banner was never reset after its first pass, so `tollBannerY < -80` was permanently
-  // false and the police pursuit (which requires that) NEVER spawned again after km 5.
   if (state.tollBannerY > -100) {
     state.tollBannerY += currentSpeed;
     if (state.tollBannerY > canvas.height + 80) state.tollBannerY = -120;
@@ -1662,7 +1694,7 @@ function update() {
     c.y += currentSpeed * 0.9;
     let collected = false;
     state.players.forEach((p) => {
-      if (!p.alive || collected) return; // FIX: two players could both collect the same coin
+      if (!p.alive || collected) return;
       if (Math.hypot(p.x + p.w / 2 - c.x, p.y + p.h / 2 - c.y) < 36) {
         collected = true;
         p.runCoins += 10;
@@ -1680,7 +1712,7 @@ function update() {
     orb.y += currentSpeed * 0.85;
     let collected = false;
     state.players.forEach((p) => {
-      if (!p.alive || collected) return; // FIX: same double-collect issue
+      if (!p.alive || collected) return;
       if (Math.hypot(p.x + p.w / 2 - orb.x, p.y + p.h / 2 - orb.y) < 40) {
         p.shield = true; collected = true;
         broadcastSfx(660, 'sine', 0.22, 0.1);
@@ -1691,8 +1723,6 @@ function update() {
     if (collected || orb.y > canvas.height + 50) state.pickups.splice(i, 1);
   }
 
-  // FIX: previously `traffic.splice(i,1)` ran inside the players.forEach; when a shield absorbed a
-  // hit the *next* player kept using the removed vehicle (and could splice a different vehicle).
   for (let i = state.traffic.length - 1; i >= 0; i--) {
     const v = state.traffic[i];
     v.y += currentSpeed - v.speed * 0.45;
@@ -1743,7 +1773,6 @@ function update() {
     saveEconomy();
     state.earnedSummary = `+${totalEarned} Coins Banked! (${p1.runCoins} pickup + ${distanceBonus} km)`;
 
-    // FIX: leaderboard always credited the host's name/car even when P2/guest had the top score
     const topIdx = p2 && p2.score > p1.score ? 1 : 0;
     const top = state.players[topIdx];
     let lbName = driverName;
@@ -1944,15 +1973,14 @@ function render() {
   ctx.restore();
 }
 
-// FIX: game logic was tied to requestAnimationFrame, so on 120/144 Hz monitors the whole game
-// ran 2x-2.4x too fast. Now logic runs at a fixed 60 updates/sec regardless of refresh rate.
+// Fixed 60 updates/sec regardless of monitor refresh rate
 const STEP_MS = 1000 / 60;
 let lastTime = 0;
 let accumulator = 0;
 
 function loop(now) {
   if (!lastTime) lastTime = now;
-  accumulator += Math.min(100, now - lastTime); // clamp so tab-switching doesn't cause a burst
+  accumulator += Math.min(100, now - lastTime);
   lastTime = now;
   while (accumulator >= STEP_MS) {
     update();
