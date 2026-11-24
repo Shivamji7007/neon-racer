@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v8.2 — Pro Studio Title Edition</title>
+  <title>Highway Rush v8.3 — Pause, Stop & Home Navigation</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -44,6 +44,17 @@
       border-color: #58a6ff;
       color: #ffffff;
     }
+    button.danger-btn {
+      background: #9e2a2b;
+      border-color: #f85149;
+      color: #ffffff;
+    }
+    button.danger-btn:hover { background: #da3633; }
+    button.warn-btn {
+      background: #9a6700;
+      border-color: #ffa657;
+      color: #ffffff;
+    }
     #hud {
       display: flex;
       flex-wrap: wrap;
@@ -72,7 +83,6 @@
       height: auto;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
     }
-    /* Pro Studio Glassmorphic Home Screen */
     .overlay {
       position: absolute;
       inset: 0;
@@ -93,6 +103,12 @@
     .solid-overlay {
       background: #0d1117;
       justify-content: center;
+    }
+    .pause-overlay {
+      background: rgba(13, 17, 23, 0.88);
+      justify-content: center;
+      gap: 12px;
+      z-index: 12;
     }
     .title-badge {
       display: inline-block;
@@ -159,7 +175,6 @@
       padding: 3px 8px;
       border-radius: 999px;
     }
-    /* Active Car Showcase Card */
     .showcase-card {
       width: 100%;
       background: linear-gradient(135deg, rgba(22, 27, 34, 0.95) 0%, rgba(33, 38, 45, 0.85) 100%);
@@ -225,7 +240,6 @@
       overflow: hidden;
     }
     .mini-fill { height: 100%; }
-    /* Segmented Pill Controls */
     .pill-section {
       width: 100%;
       display: flex;
@@ -253,7 +267,6 @@
       background: #1f6feb;
       color: #ffffff;
     }
-    /* Hero Play & Secondary Actions */
     .cta-stack {
       width: 100%;
       display: flex;
@@ -359,6 +372,24 @@
       border-radius: 8px;
       margin: 6px 0;
     }
+    /* Floating Game Over Action Bar */
+    #gameOverActions {
+      position: absolute;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 10px;
+      z-index: 9;
+      width: 86%;
+      justify-content: center;
+    }
+    #gameOverActions button {
+      flex: 1;
+      padding: 10px 12px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
     #touchControls {
       display: flex;
       gap: 10px;
@@ -383,7 +414,8 @@
     <button id="btnGarage" class="gold-btn">GARAGE</button>
     <button id="btnRanks">RANKS</button>
     <button id="btnSound">SOUND: ON</button>
-    <button id="btnMenu">HOME</button>
+    <button id="btnPause" class="warn-btn" style="display:none;">⏸ STOP</button>
+    <button id="btnMenu" class="danger-btn">🏠 HOME</button>
   </div>
 
   <div id="hud">
@@ -399,10 +431,28 @@
   <div id="gameWrap">
     <canvas id="game" width="420" height="560"></canvas>
 
+    <!-- GAME OVER ACTION BUTTONS (RACE AGAIN / QUIT TO HOME) -->
+    <div id="gameOverActions">
+      <button id="btnRaceAgain" class="green-btn">▶ RACE AGAIN</button>
+      <button id="btnCrashHome" class="danger-btn">🏠 QUIT TO HOME</button>
+    </div>
+
+    <!-- PAUSE / STOP OVERLAY -->
+    <div id="pauseOverlay" class="overlay pause-overlay" style="display:none;">
+      <div class="title-badge">RACE PAUSED</div>
+      <h1 style="font-size:24px;color:#ffa657;">GAME STOPPED</h1>
+      <p class="hero-sub" style="margin-bottom:6px;">Choose an option below to continue or exit</p>
+      <div style="display:flex;flex-direction:column;gap:8px;width:78%;">
+        <button id="btnResume" class="hero-play-btn" style="font-size:14px;padding:10px;">▶ RESUME RACE</button>
+        <button id="btnRestartPaused" class="blue-btn" style="padding:9px;font-size:13px;">↻ RESTART RUN</button>
+        <button id="btnQuitHome" class="danger-btn" style="padding:9px;font-size:13px;">⏹ QUIT TO HOME</button>
+      </div>
+    </div>
+
     <!-- PRO STUDIO HOME SCREEN OVERLAY -->
     <div id="startOverlay" class="overlay">
       <div>
-        <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.2</div>
+        <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.3</div>
         <div class="hero-title">NH-44 HIGHWAY RUSH</div>
         <div class="hero-sub">High-Speed Arcade • Rival AI • Online Multiplayer</div>
       </div>
@@ -532,7 +582,7 @@
   </div>
 
   <div id="controls">
-    Solo / Online: <b>W A S D</b> or <b>Arrows</b> or Touch &nbsp;|&nbsp; Restart: <b>Space</b> or Tap Screen
+    Drive: <b>W A S D</b> / <b>Arrows</b> &nbsp;|&nbsp; Stop/Pause: <b>P</b> or <b>Esc</b> &nbsp;|&nbsp; Restart: <b>Space</b>
   </div>
 
   <script>
@@ -547,13 +597,23 @@
     const btnGarage = document.getElementById('btnGarage');
     const btnRanks = document.getElementById('btnRanks');
     const btnSound = document.getElementById('btnSound');
+    const btnPause = document.getElementById('btnPause');
     const btnMenu = document.getElementById('btnMenu');
 
     const startOverlay = document.getElementById('startOverlay');
+    const pauseOverlay = document.getElementById('pauseOverlay');
     const garageOverlay = document.getElementById('garageOverlay');
     const ranksOverlay = document.getElementById('ranksOverlay');
     const onlineOverlay = document.getElementById('onlineOverlay');
+    const gameOverActions = document.getElementById('gameOverActions');
+
     const startBtn = document.getElementById('startBtn');
+    const btnResume = document.getElementById('btnResume');
+    const btnRestartPaused = document.getElementById('btnRestartPaused');
+    const btnQuitHome = document.getElementById('btnQuitHome');
+    const btnRaceAgain = document.getElementById('btnRaceAgain');
+    const btnCrashHome = document.getElementById('btnCrashHome');
+
     const openGarageBtn = document.getElementById('openGarageBtn');
     const closeGarageBtn = document.getElementById('closeGarageBtn');
     const openRanksBtn = document.getElementById('openRanksBtn');
@@ -682,7 +742,6 @@
       document.getElementById('prevNitBar').style.width = `${spec.nitPct}%`;
 
       pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-      // Mini road stripes
       pCtx.fillStyle = '#161b22';
       pCtx.fillRect(0, 0, 64, 84);
       pCtx.strokeStyle = 'rgba(255,255,255,0.18)';
@@ -690,7 +749,6 @@
       pCtx.beginPath(); pCtx.moveTo(32, 0); pCtx.lineTo(32, 84); pCtx.stroke();
       pCtx.setLineDash([]);
 
-      // Glow & Headlights
       const grad = pCtx.createLinearGradient(32, 22, 32, 0);
       grad.addColorStop(0, 'rgba(254, 240, 138, 0.38)');
       grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
@@ -808,6 +866,7 @@
     let mode = '1p';
     let muted = false;
     let gameStarted = false;
+    let paused = false;
     let p2Color = '#3fb950';
     let p2CarId = 'swift';
     let difficulty = 'medium';
@@ -970,17 +1029,11 @@
           }
         });
         conn.on('close', () => {
-          cleanupPeer();
-          gameStarted = false;
-          setActiveMode('1p');
-          startOverlay.style.display = 'flex';
+          quitToHome();
         });
         setTimeout(() => {
           setActiveMode('host');
-          hideAllOverlays();
-          initAudio();
-          gameStarted = true;
-          resetGame();
+          startRaceSession();
         }, 600);
       });
       peer.on('error', (err) => {
@@ -1004,10 +1057,7 @@
           document.getElementById('joinStatus').textContent = 'Connected! Race starting...';
           conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
           setActiveMode('guest');
-          hideAllOverlays();
-          initAudio();
-          gameStarted = true;
-          resetGame();
+          startRaceSession();
         });
         conn.on('data', (data) => {
           if (data.type === 'state') {
@@ -1021,10 +1071,7 @@
           }
         });
         conn.on('close', () => {
-          cleanupPeer();
-          gameStarted = false;
-          setActiveMode('1p');
-          startOverlay.style.display = 'flex';
+          quitToHome();
         });
       });
       peer.on('error', () => {
@@ -1052,12 +1099,65 @@
       setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
     });
 
-    // --- MODE & MENU HANDLERS ---
+    // --- NAVIGATION, PAUSE, STOP & QUIT TO HOME ---
     function hideAllOverlays() {
       startOverlay.style.display = 'none';
+      pauseOverlay.style.display = 'none';
       garageOverlay.style.display = 'none';
       ranksOverlay.style.display = 'none';
       onlineOverlay.style.display = 'none';
+      gameOverActions.style.display = 'none';
+    }
+
+    function syncTopBarControls() {
+      btnPause.style.display = gameStarted && !(state && state.gameOver) ? 'inline-block' : 'none';
+      btnPause.textContent = paused ? '▶ RESUME' : '⏸ STOP';
+    }
+
+    function startRaceSession() {
+      initAudio();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      hideAllOverlays();
+      paused = false;
+      gameStarted = true;
+      resetGame();
+      syncTopBarControls();
+    }
+
+    function pauseGame() {
+      if (!gameStarted || (state && state.gameOver) || mode === 'host' || mode === 'guest') return;
+      paused = true;
+      clearAllInputs();
+      if (engineGain) engineGain.gain.value = 0;
+      pauseOverlay.style.display = 'flex';
+      syncTopBarControls();
+    }
+
+    function resumeGame() {
+      if (!paused) return;
+      paused = false;
+      pauseOverlay.style.display = 'none';
+      syncTopBarControls();
+    }
+
+    function quitToHome() {
+      cleanupPeer();
+      paused = false;
+      gameStarted = false;
+      clearAllInputs();
+      if (engineGain) engineGain.gain.value = 0;
+      if (mode === 'host' || mode === 'guest') {
+        mode = '1p';
+        btn1P.classList.add('active');
+        btn2P.classList.remove('active');
+        btnOnline.classList.remove('active');
+        p2ScoreBox.style.display = 'none';
+        p2NitroBox.style.display = 'none';
+      }
+      resetGame();
+      hideAllOverlays();
+      startOverlay.style.display = 'flex';
+      syncTopBarControls();
     }
 
     function setActiveMode(newMode) {
@@ -1073,15 +1173,40 @@
 
     btn1P.addEventListener('click', () => { cleanupPeer(); setActiveMode('1p'); });
     btn2P.addEventListener('click', () => { cleanupPeer(); setActiveMode('2p'); });
-    btnOnline.addEventListener('click', () => { hideAllOverlays(); resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
-    openOnlineBtn.addEventListener('click', () => { hideAllOverlays(); resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
+    btnOnline.addEventListener('click', () => {
+      paused = false;
+      gameStarted = false;
+      if (engineGain) engineGain.gain.value = 0;
+      hideAllOverlays();
+      resetOnlineLobbyUI();
+      onlineOverlay.style.display = 'flex';
+      syncTopBarControls();
+    });
+    openOnlineBtn.addEventListener('click', () => {
+      hideAllOverlays();
+      resetOnlineLobbyUI();
+      onlineOverlay.style.display = 'flex';
+    });
+
+    btnPause.addEventListener('click', () => {
+      if (paused) resumeGame();
+      else pauseGame();
+    });
+    btnResume.addEventListener('click', resumeGame);
+    btnRestartPaused.addEventListener('click', startRaceSession);
+    btnQuitHome.addEventListener('click', quitToHome);
+    btnMenu.addEventListener('click', quitToHome);
+    btnCrashHome.addEventListener('click', quitToHome);
+    btnRaceAgain.addEventListener('click', triggerRestart);
 
     function openGarage() {
+      paused = false;
       gameStarted = false;
       if (engineGain) engineGain.gain.value = 0;
       hideAllOverlays();
       renderGarage();
       garageOverlay.style.display = 'flex';
+      syncTopBarControls();
     }
     btnGarage.addEventListener('click', openGarage);
     openGarageBtn.addEventListener('click', openGarage);
@@ -1094,11 +1219,13 @@
     });
 
     function openRanks() {
+      paused = false;
       gameStarted = false;
       if (engineGain) engineGain.gain.value = 0;
       hideAllOverlays();
       renderLeaderboard();
       ranksOverlay.style.display = 'flex';
+      syncTopBarControls();
     }
     btnRanks.addEventListener('click', openRanks);
     openRanksBtn.addEventListener('click', openRanks);
@@ -1116,13 +1243,6 @@
       muted = !muted;
       btnSound.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
       if (engineGain) engineGain.gain.value = muted ? 0 : 0.02;
-    });
-
-    btnMenu.addEventListener('click', () => {
-      gameStarted = false;
-      hideAllOverlays();
-      startOverlay.style.display = 'flex';
-      if (engineGain) engineGain.gain.value = 0;
     });
 
     document.querySelectorAll('#p1Colors .swatch').forEach((el) => {
@@ -1157,13 +1277,7 @@
       });
     });
 
-    startBtn.addEventListener('click', () => {
-      initAudio();
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      hideAllOverlays();
-      gameStarted = true;
-      resetGame();
-    });
+    startBtn.addEventListener('click', startRaceSession);
 
     // --- KEYBOARD & TOUCH INPUTS ---
     const keys = {};
@@ -1179,8 +1293,10 @@
     function triggerRestart() {
       if (!state.gameOver || !gameStarted) return;
       clearAllInputs();
+      gameOverActions.style.display = 'none';
       if (mode === 'guest' && conn && conn.open) conn.send({ type: 'restart' });
       else resetGame();
+      syncTopBarControls();
     }
 
     function bindTouch(id, prop) {
@@ -1202,12 +1318,20 @@
     });
 
     window.addEventListener('keydown', (e) => {
+      if ((e.code === 'KeyP' || e.code === 'Escape') && document.activeElement.tagName !== 'INPUT') {
+        if (gameStarted && !state.gameOver) {
+          e.preventDefault();
+          if (paused) resumeGame();
+          else pauseGame();
+          return;
+        }
+      }
       if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
         if (state.gameOver && gameStarted) {
           triggerRestart();
         } else if (!gameStarted && startOverlay.style.display !== 'none') {
-          startBtn.click();
+          startRaceSession();
         }
       }
       keys[e.code] = true;
@@ -1244,6 +1368,7 @@
       skidMarks = [];
       speedLines = [];
       shakeTime = 0;
+      gameOverActions.style.display = 'none';
 
       const cfg = DIFF_CONFIG[difficulty];
       const p1Spec = getCarSpec(equippedCarId);
@@ -1284,6 +1409,7 @@
         earnedSummary: '',
       };
       updateHudFromState();
+      syncTopBarControls();
     }
 
     // --- LIVE ANIMATED BACKGROUND DEMO ON HOME SCREEN ---
@@ -1307,7 +1433,6 @@
 
       const p1 = state.players[0];
       if (p1) {
-        // Auto-steer showcase car smoothly into open lanes
         const curLane = Math.max(0, Math.min(LANES - 1, Math.floor((p1.x + p1.w / 2 - ROAD_LEFT) / LANE_WIDTH)));
         const danger = state.traffic.some((v) => {
           const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
@@ -1619,7 +1744,7 @@
           ctx.fillRect(-2.5, -h / 2 + 4, 5, h - 8);
         }
 
-        if (boosting && !state.gameOver) {
+        if (boosting && !state.gameOver && !paused) {
           const flameLen = 16 + Math.random() * 12;
           ctx.fillStyle = '#ff9f1c';
           ctx.beginPath();
@@ -1695,7 +1820,7 @@
     function updateLocalVfx() {
       const spd = state.currentSpeed || 6;
 
-      if (gameStarted && !state.gameOver) {
+      if (gameStarted && !state.gameOver && !paused) {
         roadProps.forEach((prop) => {
           prop.y += spd;
           if (prop.y > canvas.height + 50) {
@@ -1705,7 +1830,7 @@
         });
       }
 
-      if (state.raining) {
+      if (state.raining && !paused) {
         rainDrops.forEach((r) => {
           r.y += r.speed + spd * 0.55;
           r.x -= 1.4;
@@ -1714,13 +1839,15 @@
         });
       }
 
-      for (let i = skidMarks.length - 1; i >= 0; i--) {
-        skidMarks[i].y += spd;
-        skidMarks[i].alpha -= 0.015;
-        if (skidMarks[i].alpha <= 0 || skidMarks[i].y > canvas.height + 20) skidMarks.splice(i, 1);
+      if (!paused) {
+        for (let i = skidMarks.length - 1; i >= 0; i--) {
+          skidMarks[i].y += spd;
+          skidMarks[i].alpha -= 0.015;
+          if (skidMarks[i].alpha <= 0 || skidMarks[i].y > canvas.height + 20) skidMarks.splice(i, 1);
+        }
       }
 
-      if (gameStarted && !state.gameOver) {
+      if (gameStarted && !state.gameOver && !paused) {
         state.players.forEach((p) => {
           if (!p.alive) return;
           const drifting = Math.abs(p.tilt) > 0.11 || p.braking;
@@ -1746,20 +1873,22 @@
         }
       }
 
-      for (let i = speedLines.length - 1; i >= 0; i--) {
-        speedLines[i].y += speedLines[i].speed;
-        if (speedLines[i].y > canvas.height + 60) speedLines.splice(i, 1);
-      }
+      if (!paused) {
+        for (let i = speedLines.length - 1; i >= 0; i--) {
+          speedLines[i].y += speedLines[i].speed;
+          if (speedLines[i].y > canvas.height + 60) speedLines.splice(i, 1);
+        }
 
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const pt = particles[i];
-        pt.x += pt.vx;
-        pt.y += pt.vy;
-        pt.life--;
-        if (pt.life <= 0) particles.splice(i, 1);
-      }
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const pt = particles[i];
+          pt.x += pt.vx;
+          pt.y += pt.vy;
+          pt.life--;
+          if (pt.life <= 0) particles.splice(i, 1);
+        }
 
-      if (shakeTime > 0) shakeTime--;
+        if (shakeTime > 0) shakeTime--;
+      }
     }
 
     function update() {
@@ -1767,6 +1896,8 @@
         updateAttractDemo();
         return;
       }
+      if (paused) return;
+
       updateLocalVfx();
 
       if (mode === 'guest') {
@@ -1775,6 +1906,10 @@
           engineOsc.frequency.setTargetAtTime(48 + (state.currentSpeed || 6) * 6.5, audioCtx.currentTime, 0.05);
         } else if (engineGain) {
           engineGain.gain.value = 0;
+        }
+        if (state.gameOver) {
+          gameOverActions.style.display = 'flex';
+          syncTopBarControls();
         }
         if (conn && conn.open) {
           conn.send({
@@ -1792,6 +1927,8 @@
 
       if (state.gameOver) {
         if (engineGain) engineGain.gain.value = 0;
+        gameOverActions.style.display = 'flex';
+        syncTopBarControls();
         if (mode === 'host' && conn && conn.open) conn.send({ type: 'state', state });
         return;
       }
@@ -2165,28 +2302,28 @@
       });
 
       if (state.gameOver && gameStarted) {
-        ctx.fillStyle = 'rgba(13, 17, 23, 0.86)';
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.88)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#ff7b72';
         ctx.font = 'bold 30px Segoe UI';
         ctx.textAlign = 'center';
-        ctx.fillText(mode !== '1p' ? state.winnerText : 'CRASHED!', canvas.width / 2, 195);
+        ctx.fillText(mode !== '1p' ? state.winnerText : 'CRASHED!', canvas.width / 2, 185);
 
         ctx.fillStyle = '#58a6ff';
         ctx.font = 'bold 18px Segoe UI';
-        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 238);
+        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 228);
         if (mode !== '1p' && state.players[1]) {
           ctx.fillStyle = '#3fb950';
-          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 266);
+          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 256);
         }
 
         ctx.fillStyle = '#facc15';
         ctx.font = 'bold 13px Segoe UI';
-        ctx.fillText(state.earnedSummary || '', canvas.width / 2, 302);
+        ctx.fillText(state.earnedSummary || '', canvas.width / 2, 294);
 
-        ctx.fillStyle = '#f0f6fc';
-        ctx.font = '14px Segoe UI';
-        ctx.fillText('Press SPACE or Tap Screen to Race Again', canvas.width / 2, 348);
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '12px Segoe UI';
+        ctx.fillText('Press SPACE to Race Again or use buttons below', canvas.width / 2, 332);
       }
 
       ctx.restore();
