@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v6.1 — Tuned Atmosphere & Lighting</title>
+  <title>Highway Rush v7.0 — Phase 3: Garage & Unlockable Cars</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -23,7 +23,7 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       margin-bottom: 6px;
     }
     button {
@@ -31,7 +31,7 @@
       color: #f0f6fc;
       border: 1px solid #30363d;
       border-radius: 6px;
-      padding: 5px 11px;
+      padding: 5px 10px;
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
@@ -46,12 +46,13 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 12px;
+      gap: 11px;
       margin-bottom: 6px;
       font-size: 12px;
       font-weight: 700;
     }
     .stat span { color: #58a6ff; }
+    .coin-text span { color: #facc15; }
     .p1-text span { color: #58a6ff; }
     .p2-text span { color: #3fb950; }
     .env-text span { color: #ffa657; }
@@ -78,43 +79,70 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      padding: 14px;
       text-align: center;
       z-index: 10;
+      overflow-y: auto;
     }
-    .overlay h1 { font-size: 22px; color: #ffa657; margin-bottom: 3px; }
-    .overlay p.sub { font-size: 12px; color: #8b949e; margin-bottom: 12px; }
-    .menu-group { margin-bottom: 10px; width: 100%; }
-    .menu-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 5px; }
-    .btn-row { display: flex; justify-content: center; gap: 7px; flex-wrap: wrap; }
-    .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
+    .overlay h1 { font-size: 21px; color: #ffa657; margin-bottom: 3px; }
+    .overlay p.sub { font-size: 11px; color: #8b949e; margin-bottom: 10px; }
+    .menu-group { margin-bottom: 9px; width: 100%; }
+    .menu-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 4px; }
+    .btn-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+    .swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
     .swatch.selected { border: 3px solid #ffffff; transform: scale(1.12); }
-    .green-btn { background: #238636; border-color: #2ea043; font-size: 14px; padding: 8px 20px; }
+    .green-btn { background: #238636; border-color: #2ea043; font-size: 13px; padding: 7px 16px; }
     .green-btn:hover { background: #2ea043; }
+    .gold-btn { background: #9a6700; border-color: #d29922; color: #fff; }
+    .gold-btn:hover { background: #bb8009; }
+    .garage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .car-card {
+      background: #161b22;
+      border: 2px solid #30363d;
+      border-radius: 8px;
+      padding: 8px;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .car-card.equipped { border-color: #3fb950; }
+    .car-title { font-size: 13px; font-weight: 800; color: #f0f6fc; margin-bottom: 2px; }
+    .car-tag { font-size: 10px; color: #8b949e; margin-bottom: 6px; }
+    .stat-bar-wrap { margin-bottom: 4px; }
+    .stat-bar-label { font-size: 9px; color: #8b949e; display: flex; justify-content: space-between; }
+    .stat-track { height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 2px; }
+    .stat-fill { height: 100%; background: #58a6ff; }
     input.code-input {
       background: #161b22;
       border: 2px solid #30363d;
       border-radius: 6px;
       color: #f0f6fc;
-      padding: 8px 12px;
-      font-size: 16px;
+      padding: 7px 10px;
+      font-size: 15px;
       font-weight: 700;
       text-align: center;
-      width: 140px;
+      width: 130px;
       text-transform: uppercase;
       letter-spacing: 2px;
       user-select: text;
     }
     #roomCodeDisplay {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 800;
       letter-spacing: 3px;
       color: #3fb950;
       background: #161b22;
       border: 2px dashed #3fb950;
-      padding: 8px 18px;
+      padding: 6px 16px;
       border-radius: 8px;
-      margin: 8px 0;
+      margin: 6px 0;
     }
     #touchControls {
       display: flex;
@@ -122,21 +150,22 @@
       margin-top: 8px;
     }
     .touch-btn {
-      padding: 12px 16px;
-      font-size: 14px;
+      padding: 11px 15px;
+      font-size: 13px;
       background: #21262d;
       border: 1px solid #484f58;
       border-radius: 8px;
     }
     .touch-btn:active { background: #1f6feb; }
-    #controls { margin-top: 6px; font-size: 11px; color: #8b949e; text-align: center; }
+    #controls { margin-top: 5px; font-size: 11px; color: #8b949e; text-align: center; }
   </style>
 </head>
 <body>
   <div id="topBar">
     <button id="btn1P" class="active">1P SOLO</button>
     <button id="btn2P">2P LOCAL</button>
-    <button id="btnOnline">ONLINE ROOM</button>
+    <button id="btnOnline">ONLINE</button>
+    <button id="btnGarage" class="gold-btn">GARAGE</button>
     <button id="btnSound">SOUND: ON</button>
     <button id="btnMenu">SETUP</button>
   </div>
@@ -144,6 +173,7 @@
   <div id="hud">
     <div class="stat p1-text">P1: <span id="p1Score">0</span></div>
     <div class="stat p2-text" id="p2ScoreBox" style="display:none;">P2: <span id="p2Score">0</span></div>
+    <div class="stat coin-text">COINS: <span id="coinsHud">0</span></div>
     <div class="stat">BEST: <span id="best">0</span></div>
     <div class="stat p1-text">NITRO: <span id="p1Nitro">100%</span></div>
     <div class="stat p2-text" id="p2NitroBox" style="display:none;">P2 NITRO: <span id="p2Nitro">100%</span></div>
@@ -156,10 +186,10 @@
     <!-- SETUP MENU -->
     <div id="startOverlay" class="overlay">
       <h1>NH-44 HIGHWAY RUSH</h1>
-      <p class="sub">Phase 2.1: Balanced Lighting, Monsoon & Day/Night Cycle</p>
+      <p class="sub">Phase 3: Garage, Coins Economy & Unlockable Cars</p>
 
       <div class="menu-group">
-        <div class="menu-label">Your Car Color</div>
+        <div class="menu-label">Active Car: <strong id="activeCarName" style="color:#3fb950;">Swift GT</strong></div>
         <div class="btn-row" id="p1Colors">
           <div class="swatch selected" data-color="#2f81f7" style="background:#2f81f7;"></div>
           <div class="swatch" data-color="#f85149" style="background:#f85149;"></div>
@@ -189,8 +219,17 @@
 
       <div class="btn-row" style="margin-top:4px;">
         <button id="startBtn" class="green-btn">START RACE</button>
-        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:8px 14px;">PLAY WITH FRIEND</button>
+        <button id="openGarageBtn" class="gold-btn" style="padding:7px 14px;">GARAGE</button>
+        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:7px 12px;">ONLINE</button>
       </div>
+    </div>
+
+    <!-- GARAGE OVERLAY -->
+    <div id="garageOverlay" class="overlay" style="display:none;">
+      <h1>NH-44 GARAGE</h1>
+      <p class="sub">Bank Balance: <strong id="garageCoins" style="color:#facc15;">0 Coins</strong> • Collect coins on highway!</p>
+      <div class="garage-grid" id="garageGrid"></div>
+      <button id="closeGarageBtn" class="green-btn" style="padding:6px 22px;">DONE</button>
     </div>
 
     <!-- ONLINE INVITATION CODE LOBBY -->
@@ -200,26 +239,26 @@
 
       <div class="menu-group">
         <button id="createRoomBtn" class="green-btn">CREATE ROOM CODE</button>
-        <div id="hostBox" style="display:none; margin-top:10px;">
+        <div id="hostBox" style="display:none; margin-top:8px;">
           <div class="menu-label">Share This Code With Friend:</div>
           <div id="roomCodeDisplay">----</div>
           <button id="copyCodeBtn">COPY CODE</button>
-          <p id="hostStatus" style="font-size:12px; color:#ffa657; margin-top:8px;">Waiting for friend to join...</p>
+          <p id="hostStatus" style="font-size:12px; color:#ffa657; margin-top:6px;">Waiting for friend to join...</p>
         </div>
       </div>
 
-      <div style="border-top:1px solid #30363d; width:85%; margin:10px 0;"></div>
+      <div style="border-top:1px solid #30363d; width:85%; margin:8px 0;"></div>
 
       <div class="menu-group">
         <div class="menu-label">Or Enter Friend's Code:</div>
         <div class="btn-row">
           <input id="joinCodeInput" class="code-input" inputmode="numeric" maxlength="6" placeholder="e.g. 4821" />
-          <button id="joinRoomBtn" style="background:#1f6feb;border-color:#58a6ff;padding:8px 16px;">JOIN ROOM</button>
+          <button id="joinRoomBtn" style="background:#1f6feb;border-color:#58a6ff;padding:7px 14px;">JOIN ROOM</button>
         </div>
         <p id="joinStatus" style="font-size:12px; color:#8b949e; margin-top:6px;"></p>
       </div>
 
-      <button id="closeOnlineBtn" style="margin-top:6px;">BACK</button>
+      <button id="closeOnlineBtn" style="margin-top:4px;">BACK</button>
     </div>
   </div>
 
@@ -241,12 +280,16 @@
     const btn1P = document.getElementById('btn1P');
     const btn2P = document.getElementById('btn2P');
     const btnOnline = document.getElementById('btnOnline');
+    const btnGarage = document.getElementById('btnGarage');
     const btnSound = document.getElementById('btnSound');
     const btnMenu = document.getElementById('btnMenu');
 
     const startOverlay = document.getElementById('startOverlay');
+    const garageOverlay = document.getElementById('garageOverlay');
     const onlineOverlay = document.getElementById('onlineOverlay');
     const startBtn = document.getElementById('startBtn');
+    const openGarageBtn = document.getElementById('openGarageBtn');
+    const closeGarageBtn = document.getElementById('closeGarageBtn');
     const openOnlineBtn = document.getElementById('openOnlineBtn');
     const closeOnlineBtn = document.getElementById('closeOnlineBtn');
     const createRoomBtn = document.getElementById('createRoomBtn');
@@ -256,11 +299,13 @@
     const p1ScoreEl = document.getElementById('p1Score');
     const p2ScoreEl = document.getElementById('p2Score');
     const p2ScoreBox = document.getElementById('p2ScoreBox');
+    const coinsHudEl = document.getElementById('coinsHud');
     const bestEl = document.getElementById('best');
     const p1NitroEl = document.getElementById('p1Nitro');
     const p2NitroEl = document.getElementById('p2Nitro');
     const p2NitroBox = document.getElementById('p2NitroBox');
     const envLabelEl = document.getElementById('envLabel');
+    const activeCarNameEl = document.getElementById('activeCarName');
 
     const ROAD_LEFT = 54;
     const ROAD_WIDTH = 312;
@@ -270,6 +315,107 @@
     document.querySelectorAll('button').forEach((b) => {
       b.addEventListener('click', () => b.blur());
     });
+
+    // --- GARAGE CARS CATALOG & PERSISTENT ECONOMY ---
+    const CARS = [
+      { id: 'swift',  name: 'Swift GT',        tag: 'Balanced Starter',   cost: 0,    speedBonus: 0.0, handling: 6.6, nitroDrain: 0.65, nitroRegen: 0.22, bodyStyle: 'hatch', spdPct: 60, hndPct: 68, nitPct: 60 },
+      { id: 'verna',  name: 'Verna Turbo',     tag: 'Fast Highway Sedan', cost: 250,  speedBonus: 0.7, handling: 7.4, nitroDrain: 0.58, nitroRegen: 0.25, bodyStyle: 'sedan', spdPct: 76, hndPct: 78, nitPct: 70 },
+      { id: 'thar',   name: 'Thar 4x4',        tag: 'Heavy Nitro SUV',    cost: 600,  speedBonus: 1.1, handling: 7.1, nitroDrain: 0.45, nitroRegen: 0.30, bodyStyle: 'suv',   spdPct: 82, hndPct: 72, nitPct: 92 },
+      { id: 'bharat', name: 'BHARAT Hyper-EV', tag: 'Prototype Supercar', cost: 1200, speedBonus: 1.8, handling: 8.4, nitroDrain: 0.42, nitroRegen: 0.34, bodyStyle: 'hyper', spdPct: 98, hndPct: 95, nitPct: 96 },
+    ];
+
+    const rawCoins = Number(localStorage.getItem('highwayRushCoins'));
+    let totalCoins = Number.isFinite(rawBestVal(rawCoins)) ? rawCoins : 0;
+    function rawBestVal(n) { return Number.isFinite(n) && n >= 0 ? n : 0; }
+    totalCoins = rawBestVal(rawCoins);
+
+    let unlockedCars = ['swift'];
+    try {
+      const savedUnlocked = JSON.parse(localStorage.getItem('highwayRushUnlocked') || '["swift"]');
+      if (Array.isArray(savedUnlocked) && savedUnlocked.length > 0) unlockedCars = savedUnlocked;
+    } catch (_) {}
+
+    let equippedCarId = localStorage.getItem('highwayRushEquipped') || 'swift';
+    if (!unlockedCars.includes(equippedCarId)) equippedCarId = 'swift';
+
+    function getCarSpec(id) {
+      return CARS.find((c) => c.id === id) || CARS[0];
+    }
+
+    function saveEconomy() {
+      localStorage.setItem('highwayRushCoins', String(Math.floor(totalCoins)));
+      localStorage.setItem('highwayRushUnlocked', JSON.stringify(unlockedCars));
+      localStorage.setItem('highwayRushEquipped', equippedCarId);
+      coinsHudEl.textContent = Math.floor(totalCoins);
+      activeCarNameEl.textContent = getCarSpec(equippedCarId).name;
+    }
+    saveEconomy();
+
+    function renderGarage() {
+      document.getElementById('garageCoins').textContent = `${Math.floor(totalCoins)} Coins`;
+      const grid = document.getElementById('garageGrid');
+      grid.innerHTML = '';
+
+      CARS.forEach((car) => {
+        const owned = unlockedCars.includes(car.id);
+        const equipped = equippedCarId === car.id;
+        const card = document.createElement('div');
+        card.className = 'car-card' + (equipped ? ' equipped' : '');
+
+        card.innerHTML = `
+          <div>
+            <div class="car-title">${car.name}</div>
+            <div class="car-tag">${car.tag}</div>
+            <div class="stat-bar-wrap">
+              <div class="stat-bar-label"><span>SPEED</span><span>${car.spdPct}%</span></div>
+              <div class="stat-track"><div class="stat-fill" style="width:${car.spdPct}%;background:#ffa657;"></div></div>
+            </div>
+            <div class="stat-bar-wrap">
+              <div class="stat-bar-label"><span>HANDLING</span><span>${car.hndPct}%</span></div>
+              <div class="stat-track"><div class="stat-fill" style="width:${car.hndPct}%;background:#58a6ff;"></div></div>
+            </div>
+            <div class="stat-bar-wrap" style="margin-bottom:7px;">
+              <div class="stat-bar-label"><span>NITRO</span><span>${car.nitPct}%</span></div>
+              <div class="stat-track"><div class="stat-fill" style="width:${car.nitPct}%;background:#3fb950;"></div></div>
+            </div>
+          </div>
+        `;
+
+        const actionBtn = document.createElement('button');
+        actionBtn.style.width = '100%';
+        if (equipped) {
+          actionBtn.textContent = 'EQUIPPED';
+          actionBtn.className = 'active';
+        } else if (owned) {
+          actionBtn.textContent = 'EQUIP CAR';
+          actionBtn.onclick = () => {
+            equippedCarId = car.id;
+            saveEconomy();
+            renderGarage();
+            resetGame();
+          };
+        } else {
+          actionBtn.textContent = `UNLOCK (${car.cost} COINS)`;
+          actionBtn.className = 'gold-btn';
+          actionBtn.onclick = () => {
+            if (totalCoins >= car.cost) {
+              totalCoins -= car.cost;
+              unlockedCars.push(car.id);
+              equippedCarId = car.id;
+              saveEconomy();
+              playTone(740, 'sine', 0.25, 0.12);
+              renderGarage();
+              resetGame();
+            } else {
+              actionBtn.textContent = `NEED ${car.cost - Math.floor(totalCoins)} MORE`;
+              setTimeout(() => renderGarage(), 1100);
+            }
+          };
+        }
+        card.appendChild(actionBtn);
+        grid.appendChild(card);
+      });
+    }
 
     let mode = '1p';
     let muted = false;
@@ -443,11 +589,8 @@
         }, 600);
       });
       peer.on('error', (err) => {
-        if (err.type === 'unavailable-id' && retryCount < 3) {
-          createOnlineRoom(retryCount + 1);
-        } else {
-          document.getElementById('hostStatus').textContent = 'Network error: ' + err.type;
-        }
+        if (err.type === 'unavailable-id' && retryCount < 3) createOnlineRoom(retryCount + 1);
+        else document.getElementById('hostStatus').textContent = 'Network error: ' + err.type;
       });
     }
 
@@ -532,6 +675,19 @@
     btnOnline.addEventListener('click', () => { resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
     openOnlineBtn.addEventListener('click', () => { resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
 
+    function openGarage() {
+      gameStarted = false;
+      if (engineGain) engineGain.gain.value = 0;
+      renderGarage();
+      garageOverlay.style.display = 'flex';
+    }
+    btnGarage.addEventListener('click', openGarage);
+    openGarageBtn.addEventListener('click', openGarage);
+    closeGarageBtn.addEventListener('click', () => {
+      garageOverlay.style.display = 'none';
+      startOverlay.style.display = 'flex';
+    });
+
     closeOnlineBtn.addEventListener('click', () => {
       onlineOverlay.style.display = 'none';
       if (!gameStarted) startOverlay.style.display = 'flex';
@@ -546,6 +702,7 @@
     btnMenu.addEventListener('click', () => {
       gameStarted = false;
       onlineOverlay.style.display = 'none';
+      garageOverlay.style.display = 'none';
       startOverlay.style.display = 'flex';
       if (engineGain) engineGain.gain.value = 0;
     });
@@ -582,6 +739,7 @@
       initAudio();
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       startOverlay.style.display = 'none';
+      garageOverlay.style.display = 'none';
       gameStarted = true;
       resetGame();
     });
@@ -633,11 +791,13 @@
 
     let state;
 
-    function createPlayer(x, color, label) {
+    function createPlayer(x, color, label, spec) {
       return {
-        x, y: 450, w: 36, h: 64,
+        x, y: 450, w: spec.bodyStyle === 'suv' ? 38 : 36, h: 64,
         vx: 0, tilt: 0, boosting: false, braking: false,
-        color, label, nitro: 100, score: 0, shield: false, alive: true,
+        color, label, bodyStyle: spec.bodyStyle,
+        handling: spec.handling, nitroDrain: spec.nitroDrain, nitroRegen: spec.nitroRegen,
+        nitro: 100, score: 0, runCoins: 0, shield: false, alive: true,
       };
     }
 
@@ -661,17 +821,20 @@
       shakeTime = 0;
 
       const cfg = DIFF_CONFIG[difficulty];
+      const p1Spec = getCarSpec(equippedCarId);
+      const p2Spec = CARS[0];
       const isMulti = mode !== '1p';
+
       const players = isMulti
-        ? [createPlayer(ROAD_LEFT + 58, selectedColor, 'P1'), createPlayer(ROAD_LEFT + 218, p2Color, 'P2')]
-        : [createPlayer(canvas.width / 2 - 18, selectedColor, 'P1')];
+        ? [createPlayer(ROAD_LEFT + 58, selectedColor, 'P1', p1Spec), createPlayer(ROAD_LEFT + 218, p2Color, 'P2', p2Spec)]
+        : [createPlayer(canvas.width / 2 - 18, selectedColor, 'P1', p1Spec)];
 
       const atm = resolveAtmosphere(0);
 
       state = {
         players,
-        baseSpeed: cfg.baseSpeed,
-        currentSpeed: cfg.baseSpeed,
+        baseSpeed: cfg.baseSpeed + p1Spec.speedBonus,
+        currentSpeed: cfg.baseSpeed + p1Spec.speedBonus,
         boostingAny: false,
         roadOffset: 0,
         distanceKm: 0,
@@ -682,11 +845,14 @@
         envLabel: atm.label,
         traffic: [],
         pickups: [],
+        coins: [],
         popups: [],
         spawnTimer: 0,
         pickupTimer: 0,
+        coinTimer: 0,
         gameOver: false,
         winnerText: '',
+        earnedSummary: '',
       };
       updateHudFromState();
     }
@@ -725,13 +891,21 @@
       state.pickups.push({ x, y: -40, r: 13 });
     }
 
+    function spawnCoinLine() {
+      const lane = Math.floor(Math.random() * LANES);
+      const x = ROAD_LEFT + lane * LANE_WIDTH + LANE_WIDTH / 2;
+      for (let k = 0; k < 3; k++) {
+        state.coins.push({ x, y: -30 - k * 34, r: 9 });
+      }
+    }
+
     function addPopup(x, y, text, color) {
-      if (state.popups.length > 12) state.popups.shift();
+      if (state.popups.length > 14) state.popups.shift();
       state.popups.push({ x, y, text, color, life: 45 });
     }
 
     function drawVehicle(v, isPlayer = false) {
-      const { x, y, w, h, color, type, shield, label, tilt = 0, boosting = false, braking = false } = v;
+      const { x, y, w, h, color, type, bodyStyle, shield, label, tilt = 0, boosting = false, braking = false } = v;
       const isNight = state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK';
 
       ctx.save();
@@ -757,7 +931,6 @@
         ctx.shadowColor = color;
         ctx.shadowBlur = isNight ? 18 : 10;
       } else if (isNight) {
-        // Subtle red taillight glow on night traffic for clear visibility
         ctx.shadowColor = '#ff4d4d';
         ctx.shadowBlur = 10;
       }
@@ -791,16 +964,30 @@
       }
 
       ctx.fillStyle = color;
-      ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 8); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, bodyStyle === 'suv' ? 5 : 8); ctx.fill();
       ctx.shadowBlur = 0;
 
+      // Windshield & rear glass
       ctx.fillStyle = '#0d1117';
       ctx.fillRect(-w / 2 + 5, -h / 2 + 14, w - 10, 14);
       ctx.fillRect(-w / 2 + 6, h / 2 - 19, w - 12, 9);
 
       if (isPlayer) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-2.5, -h / 2 + 4, 5, h - 8);
+        if (bodyStyle === 'suv') {
+          // Roof rack bars for Thar 4x4
+          ctx.fillStyle = '#161b22';
+          ctx.fillRect(-w / 2 + 4, -4, w - 8, 16);
+        } else if (bodyStyle === 'hyper') {
+          // Aero rear wing & twin stripes for BHARAT Hyper-EV
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(-5, -h / 2 + 4, 3, h - 8);
+          ctx.fillRect(2, -h / 2 + 4, 3, h - 8);
+          ctx.fillStyle = '#0d1117';
+          ctx.fillRect(-w / 2 - 1, h / 2 - 5, w + 2, 4);
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-2.5, -h / 2 + 4, 5, h - 8);
+        }
 
         if (boosting && !state.gameOver) {
           const flameLen = 16 + Math.random() * 12;
@@ -861,6 +1048,7 @@
       const p2 = state.players[1];
       p1ScoreEl.textContent = p1.score;
       p1NitroEl.textContent = `${Math.round(p1.nitro)}%`;
+      coinsHudEl.textContent = Math.floor(totalCoins + p1.runCoins);
       if (p2) {
         p2ScoreEl.textContent = p2.score;
         p2NitroEl.textContent = `${Math.round(p2.nitro)}%`;
@@ -993,8 +1181,8 @@
         p2.braking = p2.alive && p2Down;
       }
 
-      p1.nitro = p1Boost ? Math.max(0, p1.nitro - 0.65) : Math.min(100, p1.nitro + 0.22);
-      if (p2) p2.nitro = p2Boost ? Math.max(0, p2.nitro - 0.65) : Math.min(100, p2.nitro + 0.22);
+      p1.nitro = p1Boost ? Math.max(0, p1.nitro - p1.nitroDrain) : Math.min(100, p1.nitro + p1.nitroRegen);
+      if (p2) p2.nitro = p2Boost ? Math.max(0, p2.nitro - p2.nitroDrain) : Math.min(100, p2.nitro + p2.nitroRegen);
 
       const maxScore = Math.max(p1.score, p2 ? p2.score : 0);
       let currentSpeed = state.baseSpeed + Math.min(maxScore / 950, 6.5);
@@ -1014,10 +1202,10 @@
       function applyCarPhysics(p, left, right, boost) {
         if (!p.alive) return;
         p.score += Math.round(currentSpeed * (boost ? 0.38 : 0.25));
-        const targetVx = (right ? 6.8 : 0) - (left ? 6.8 : 0);
+        const targetVx = (right ? p.handling : 0) - (left ? p.handling : 0);
         p.vx += (targetVx - p.vx) * 0.35;
         p.x = Math.max(minX, Math.min(maxX, p.x + p.vx));
-        const targetTilt = (p.vx / 6.8) * 0.17;
+        const targetTilt = (p.vx / p.handling) * 0.17;
         p.tilt += (targetTilt - p.tilt) * 0.28;
       }
 
@@ -1049,8 +1237,31 @@
       if (state.spawnTimer >= spawnInterval) { spawnTraffic(); state.spawnTimer = 0; }
 
       state.pickupTimer++;
-      if (state.pickupTimer >= 340) { spawnShield(); state.pickupTimer = 0; }
+      if (state.pickupTimer >= 360) { spawnShield(); state.pickupTimer = 0; }
 
+      state.coinTimer++;
+      if (state.coinTimer >= 165) { spawnCoinLine(); state.coinTimer = 0; }
+
+      // Highway Coins Pickup
+      for (let i = state.coins.length - 1; i >= 0; i--) {
+        const c = state.coins[i];
+        c.y += currentSpeed * 0.9;
+        let collected = false;
+        state.players.forEach((p) => {
+          if (!p.alive) return;
+          if (Math.hypot(p.x + p.w / 2 - c.x, p.y + p.h / 2 - c.y) < 36) {
+            collected = true;
+            p.runCoins += 10;
+            p.score += 40;
+            broadcastSfx(1040, 'sine', 0.1, 0.06);
+            broadcastVfx('sparks', c.x, c.y, '#facc15');
+            addPopup(p.x, p.y - 14, '+10 COINS', '#facc15');
+          }
+        });
+        if (collected || c.y > canvas.height + 40) state.coins.splice(i, 1);
+      }
+
+      // Shield Orbs
       for (let i = state.pickups.length - 1; i >= 0; i--) {
         const orb = state.pickups[i];
         orb.y += currentSpeed * 0.85;
@@ -1078,6 +1289,7 @@
             if (gap >= 34 && gap <= 68) {
               v.nearMissedBy[p.label] = true;
               p.score += 150;
+              p.runCoins += 5;
               broadcastSfx(880, 'triangle', 0.14, 0.07);
               broadcastVfx('sparks', p.x + p.w / 2, p.y + 10, '#ffa657');
               addPopup(p.x, p.y - 20, `${p.label} +150!`, '#ffa657');
@@ -1108,6 +1320,12 @@
         if (mode !== '1p') {
           state.winnerText = alivePlayers.length === 1 ? `${alivePlayers[0].label} WINS!` : 'DOUBLE CRASH!';
         }
+        const distanceBonus = Math.floor(state.distanceKm * 4);
+        const totalEarned = p1.runCoins + distanceBonus;
+        totalCoins += totalEarned;
+        saveEconomy();
+        state.earnedSummary = `+${totalEarned} Coins Banked! (${p1.runCoins} pickup + ${distanceBonus} km)`;
+
         const topRun = Math.max(p1.score, p2 ? p2.score : 0);
         if (topRun > bestScore) {
           bestScore = topRun;
@@ -1150,7 +1368,6 @@
       ctx.fillStyle = grassColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Roadside Trees & Streetlights
       roadProps.forEach((prop) => {
         const px = prop.side === 'left' ? 22 : canvas.width - 22;
         if (prop.kind === 'tree') {
@@ -1178,7 +1395,6 @@
         }
       });
 
-      // NH-44 Green Highway Milestone Board
       const milestoneY = ((state.distanceKm * 180) % (canvas.height + 120)) - 60;
       ctx.fillStyle = '#15803d';
       ctx.fillRect(5, milestoneY, 42, 44);
@@ -1192,11 +1408,9 @@
       ctx.fillText('DELHI', 26, milestoneY + 25);
       ctx.fillText(`${Math.floor(state.distanceKm)} KM`, 26, milestoneY + 37);
 
-      // Asphalt Road
       ctx.fillStyle = roadColor;
       ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
 
-      // Subtle atmospheric tint on asphalt (warm sunset or wet monsoon sheen)
       if (state.timeOfDay === 'SUNSET') {
         ctx.fillStyle = 'rgba(251, 146, 60, 0.06)';
         ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
@@ -1206,20 +1420,17 @@
         ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
       }
 
-      // Tyre skid marks
       skidMarks.forEach((sk) => {
         ctx.fillStyle = `rgba(10, 12, 16, ${sk.alpha})`;
         ctx.fillRect(sk.x, sk.y, 3, 10);
       });
 
-      // Rumble strips
       for (let y = -48 + state.roadOffset; y < canvas.height; y += 48) {
         ctx.fillStyle = Math.floor((y - state.roadOffset) / 48) % 2 === 0 ? '#da3633' : '#f0f6fc';
         ctx.fillRect(ROAD_LEFT - 8, y, 8, 24);
         ctx.fillRect(ROAD_LEFT + ROAD_WIDTH, y, 8, 24);
       }
 
-      // Lane dividers
       ctx.strokeStyle = 'rgba(240, 246, 252, 0.35)';
       ctx.lineWidth = 3;
       ctx.setLineDash([24, 24]);
@@ -1230,7 +1441,6 @@
       }
       ctx.setLineDash([]);
 
-      // Overhead FASTag Toll Plaza
       if (state.tollBannerY > -80 && state.tollBannerY < canvas.height + 60) {
         ctx.fillStyle = '#1f6feb';
         ctx.fillRect(ROAD_LEFT - 6, state.tollBannerY, ROAD_WIDTH + 12, 26);
@@ -1243,6 +1453,19 @@
         ctx.fillText('NHAI FASTag TOLL PLAZA', canvas.width / 2, state.tollBannerY + 17);
       }
 
+      // Golden Highway Coins
+      state.coins.forEach((c) => {
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#854d0e';
+        ctx.font = 'bold 10px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('₹', c.x, c.y + 3.5);
+      });
+
       // Shield Orbs
       state.pickups.forEach((orb) => {
         ctx.fillStyle = 'rgba(57, 211, 83, 0.25)';
@@ -1254,7 +1477,6 @@
       state.traffic.forEach((v) => drawVehicle(v, false));
       state.players.forEach((p) => { if (p.alive) drawVehicle(p, true); });
 
-      // Smoke, Water Spray & Spark Particles
       particles.forEach((pt) => {
         ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
         ctx.fillStyle = pt.color;
@@ -1264,7 +1486,6 @@
       });
       ctx.globalAlpha = 1;
 
-      // Balanced Monsoon Rain Streaks
       if (state.raining) {
         ctx.strokeStyle = 'rgba(186, 230, 253, 0.30)';
         ctx.lineWidth = 1.1;
@@ -1276,7 +1497,6 @@
         });
       }
 
-      // Nitro Wind Lines
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 2;
       speedLines.forEach((sl) => {
@@ -1286,7 +1506,6 @@
         ctx.stroke();
       });
 
-      // Popups
       state.popups.forEach((pop) => {
         ctx.fillStyle = pop.color;
         ctx.font = 'bold 13px Segoe UI';
@@ -1295,23 +1514,28 @@
       });
 
       if (state.gameOver) {
-        ctx.fillStyle = 'rgba(13, 17, 23, 0.85)';
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.86)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#ff7b72';
         ctx.font = 'bold 30px Segoe UI';
         ctx.textAlign = 'center';
-        ctx.fillText(mode !== '1p' ? state.winnerText : 'CRASHED!', canvas.width / 2, 220);
+        ctx.fillText(mode !== '1p' ? state.winnerText : 'CRASHED!', canvas.width / 2, 200);
 
         ctx.fillStyle = '#58a6ff';
         ctx.font = 'bold 18px Segoe UI';
-        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 265);
+        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 245);
         if (mode !== '1p' && state.players[1]) {
           ctx.fillStyle = '#3fb950';
-          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 295);
+          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 273);
         }
+
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 13px Segoe UI';
+        ctx.fillText(state.earnedSummary || '', canvas.width / 2, 308);
+
         ctx.fillStyle = '#f0f6fc';
         ctx.font = '14px Segoe UI';
-        ctx.fillText('Press SPACE or Tap Screen to Race Again', canvas.width / 2, 345);
+        ctx.fillText('Press SPACE or Tap Screen to Race Again', canvas.width / 2, 355);
       }
 
       ctx.restore();
