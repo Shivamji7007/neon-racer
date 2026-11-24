@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v7.0 — Phase 3: Garage & Unlockable Cars</title>
+  <title>Highway Rush v8.0 — Phase 4: Rival AI, Police Chase & Leaderboard</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -23,7 +23,7 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 6px;
+      gap: 5px;
       margin-bottom: 6px;
     }
     button {
@@ -31,8 +31,8 @@
       color: #f0f6fc;
       border: 1px solid #30363d;
       border-radius: 6px;
-      padding: 5px 10px;
-      font-size: 12px;
+      padding: 5px 9px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
     }
@@ -46,7 +46,7 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 11px;
+      gap: 10px;
       margin-bottom: 6px;
       font-size: 12px;
       font-weight: 700;
@@ -84,14 +84,14 @@
       z-index: 10;
       overflow-y: auto;
     }
-    .overlay h1 { font-size: 21px; color: #ffa657; margin-bottom: 3px; }
-    .overlay p.sub { font-size: 11px; color: #8b949e; margin-bottom: 10px; }
-    .menu-group { margin-bottom: 9px; width: 100%; }
+    .overlay h1 { font-size: 20px; color: #ffa657; margin-bottom: 3px; }
+    .overlay p.sub { font-size: 11px; color: #8b949e; margin-bottom: 9px; }
+    .menu-group { margin-bottom: 8px; width: 100%; }
     .menu-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 4px; }
     .btn-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
-    .swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
+    .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
     .swatch.selected { border: 3px solid #ffffff; transform: scale(1.12); }
-    .green-btn { background: #238636; border-color: #2ea043; font-size: 13px; padding: 7px 16px; }
+    .green-btn { background: #238636; border-color: #2ea043; font-size: 13px; padding: 7px 15px; }
     .green-btn:hover { background: #2ea043; }
     .gold-btn { background: #9a6700; border-color: #d29922; color: #fff; }
     .gold-btn:hover { background: #bb8009; }
@@ -113,12 +113,41 @@
       justify-content: space-between;
     }
     .car-card.equipped { border-color: #3fb950; }
-    .car-title { font-size: 13px; font-weight: 800; color: #f0f6fc; margin-bottom: 2px; }
-    .car-tag { font-size: 10px; color: #8b949e; margin-bottom: 6px; }
+    .car-title { font-size: 12px; font-weight: 800; color: #f0f6fc; margin-bottom: 2px; }
+    .car-tag { font-size: 10px; color: #8b949e; margin-bottom: 5px; }
     .stat-bar-wrap { margin-bottom: 4px; }
     .stat-bar-label { font-size: 9px; color: #8b949e; display: flex; justify-content: space-between; }
     .stat-track { height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 2px; }
     .stat-fill { height: 100%; background: #58a6ff; }
+    table.lb-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 12px 0;
+      font-size: 12px;
+    }
+    table.lb-table th {
+      color: #8b949e;
+      font-size: 10px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #30363d;
+      padding: 6px 4px;
+    }
+    table.lb-table td {
+      padding: 7px 4px;
+      border-bottom: 1px solid #21262d;
+    }
+    input.text-input {
+      background: #161b22;
+      border: 1.5px solid #30363d;
+      border-radius: 6px;
+      color: #f0f6fc;
+      padding: 5px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      width: 170px;
+      user-select: text;
+    }
     input.code-input {
       background: #161b22;
       border: 2px solid #30363d;
@@ -166,6 +195,7 @@
     <button id="btn2P">2P LOCAL</button>
     <button id="btnOnline">ONLINE</button>
     <button id="btnGarage" class="gold-btn">GARAGE</button>
+    <button id="btnRanks">RANKS</button>
     <button id="btnSound">SOUND: ON</button>
     <button id="btnMenu">SETUP</button>
   </div>
@@ -186,7 +216,12 @@
     <!-- SETUP MENU -->
     <div id="startOverlay" class="overlay">
       <h1>NH-44 HIGHWAY RUSH</h1>
-      <p class="sub">Phase 3: Garage, Coins Economy & Unlockable Cars</p>
+      <p class="sub">Phase 4: Rival AI, Police Chase & Hall of Fame</p>
+
+      <div class="menu-group">
+        <div class="menu-label">Driver Name (For Leaderboard)</div>
+        <input id="driverNameInput" class="text-input" maxlength="14" placeholder="Driver Name" />
+      </div>
 
       <div class="menu-group">
         <div class="menu-label">Active Car: <strong id="activeCarName" style="color:#3fb950;">Swift GT</strong></div>
@@ -199,16 +234,12 @@
       </div>
 
       <div class="menu-group">
-        <div class="menu-label">Difficulty</div>
-        <div class="btn-row" id="diffRow">
+        <div class="menu-label">Difficulty & Weather</div>
+        <div class="btn-row" id="diffRow" style="margin-bottom:5px;">
           <button data-diff="easy">EASY</button>
           <button data-diff="medium" class="active">MEDIUM</button>
           <button data-diff="hard">HARD</button>
         </div>
-      </div>
-
-      <div class="menu-group">
-        <div class="menu-label">Atmosphere & Weather</div>
         <div class="btn-row" id="weatherRow">
           <button data-weather="dynamic" class="active">DYNAMIC</button>
           <button data-weather="day">DAY</button>
@@ -219,8 +250,8 @@
 
       <div class="btn-row" style="margin-top:4px;">
         <button id="startBtn" class="green-btn">START RACE</button>
-        <button id="openGarageBtn" class="gold-btn" style="padding:7px 14px;">GARAGE</button>
-        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:7px 12px;">ONLINE</button>
+        <button id="openGarageBtn" class="gold-btn" style="padding:7px 12px;">GARAGE</button>
+        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:7px 11px;">ONLINE</button>
       </div>
     </div>
 
@@ -230,6 +261,25 @@
       <p class="sub">Bank Balance: <strong id="garageCoins" style="color:#facc15;">0 Coins</strong> • Collect coins on highway!</p>
       <div class="garage-grid" id="garageGrid"></div>
       <button id="closeGarageBtn" class="green-btn" style="padding:6px 22px;">DONE</button>
+    </div>
+
+    <!-- TOP-5 LEADERBOARD OVERLAY -->
+    <div id="ranksOverlay" class="overlay" style="display:none;">
+      <h1>NH-44 HALL OF FAME</h1>
+      <p class="sub">Top-5 Saved Highway Records</p>
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Driver</th>
+            <th>Car</th>
+            <th>Dist</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="ranksBody"></tbody>
+      </table>
+      <button id="closeRanksBtn" class="green-btn" style="padding:6px 22px;">CLOSE</button>
     </div>
 
     <!-- ONLINE INVITATION CODE LOBBY -->
@@ -281,15 +331,18 @@
     const btn2P = document.getElementById('btn2P');
     const btnOnline = document.getElementById('btnOnline');
     const btnGarage = document.getElementById('btnGarage');
+    const btnRanks = document.getElementById('btnRanks');
     const btnSound = document.getElementById('btnSound');
     const btnMenu = document.getElementById('btnMenu');
 
     const startOverlay = document.getElementById('startOverlay');
     const garageOverlay = document.getElementById('garageOverlay');
+    const ranksOverlay = document.getElementById('ranksOverlay');
     const onlineOverlay = document.getElementById('onlineOverlay');
     const startBtn = document.getElementById('startBtn');
     const openGarageBtn = document.getElementById('openGarageBtn');
     const closeGarageBtn = document.getElementById('closeGarageBtn');
+    const closeRanksBtn = document.getElementById('closeRanksBtn');
     const openOnlineBtn = document.getElementById('openOnlineBtn');
     const closeOnlineBtn = document.getElementById('closeOnlineBtn');
     const createRoomBtn = document.getElementById('createRoomBtn');
@@ -306,6 +359,7 @@
     const p2NitroBox = document.getElementById('p2NitroBox');
     const envLabelEl = document.getElementById('envLabel');
     const activeCarNameEl = document.getElementById('activeCarName');
+    const driverNameInput = document.getElementById('driverNameInput');
 
     const ROAD_LEFT = 54;
     const ROAD_WIDTH = 312;
@@ -316,6 +370,54 @@
       b.addEventListener('click', () => b.blur());
     });
 
+    // --- DRIVER NAME & TOP-5 LEADERBOARD ---
+    let driverName = localStorage.getItem('highwayRushDriver') || 'Shivam';
+    driverNameInput.value = driverName;
+    driverNameInput.addEventListener('input', () => {
+      driverName = driverNameInput.value.trim() || 'Driver';
+      localStorage.setItem('highwayRushDriver', driverName);
+    });
+
+    let leaderboard = [];
+    try {
+      const savedLb = JSON.parse(localStorage.getItem('highwayRushLeaderboard') || '[]');
+      if (Array.isArray(savedLb)) leaderboard = savedLb;
+    } catch (_) {}
+
+    function recordLeaderboardScore(name, carName, distKm, score) {
+      if (score <= 0) return;
+      leaderboard.push({
+        name: (name || 'Driver').slice(0, 14),
+        car: carName,
+        dist: `${Math.floor(distKm)} km`,
+        score: Math.floor(score),
+      });
+      leaderboard.sort((a, b) => b.score - a.score);
+      leaderboard = leaderboard.slice(0, 5);
+      localStorage.setItem('highwayRushLeaderboard', JSON.stringify(leaderboard));
+    }
+
+    function renderLeaderboard() {
+      const body = document.getElementById('ranksBody');
+      body.innerHTML = '';
+      if (leaderboard.length === 0) {
+        body.innerHTML = '<tr><td colspan="5" style="color:#8b949e;padding:18px;">No races recorded yet. Finish a run to set a record!</td></tr>';
+        return;
+      }
+      leaderboard.forEach((entry, idx) => {
+        const tr = document.createElement('tr');
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
+        tr.innerHTML = `
+          <td><strong>${medal}</strong></td>
+          <td style="color:#f0f6fc;font-weight:700;">${entry.name}</td>
+          <td style="color:#8b949e;">${entry.car}</td>
+          <td style="color:#3fb950;">${entry.dist}</td>
+          <td style="color:#ffa657;font-weight:800;">${entry.score}</td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
     // --- GARAGE CARS CATALOG & PERSISTENT ECONOMY ---
     const CARS = [
       { id: 'swift',  name: 'Swift GT',        tag: 'Balanced Starter',   cost: 0,    speedBonus: 0.0, handling: 6.6, nitroDrain: 0.65, nitroRegen: 0.22, bodyStyle: 'hatch', spdPct: 60, hndPct: 68, nitPct: 60 },
@@ -325,9 +427,7 @@
     ];
 
     const rawCoins = Number(localStorage.getItem('highwayRushCoins'));
-    let totalCoins = Number.isFinite(rawBestVal(rawCoins)) ? rawCoins : 0;
-    function rawBestVal(n) { return Number.isFinite(n) && n >= 0 ? n : 0; }
-    totalCoins = rawBestVal(rawCoins);
+    let totalCoins = Number.isFinite(rawCoins) && rawCoins >= 0 ? rawCoins : 0;
 
     let unlockedCars = ['swift'];
     try {
@@ -659,6 +759,13 @@
     });
 
     // --- MODE & MENU HANDLERS ---
+    function hideAllOverlays() {
+      startOverlay.style.display = 'none';
+      garageOverlay.style.display = 'none';
+      ranksOverlay.style.display = 'none';
+      onlineOverlay.style.display = 'none';
+    }
+
     function setActiveMode(newMode) {
       mode = newMode;
       const isMulti = mode !== '1p';
@@ -672,19 +779,32 @@
 
     btn1P.addEventListener('click', () => { cleanupPeer(); setActiveMode('1p'); });
     btn2P.addEventListener('click', () => { cleanupPeer(); setActiveMode('2p'); });
-    btnOnline.addEventListener('click', () => { resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
-    openOnlineBtn.addEventListener('click', () => { resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
+    btnOnline.addEventListener('click', () => { hideAllOverlays(); resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
+    openOnlineBtn.addEventListener('click', () => { hideAllOverlays(); resetOnlineLobbyUI(); onlineOverlay.style.display = 'flex'; });
 
     function openGarage() {
       gameStarted = false;
       if (engineGain) engineGain.gain.value = 0;
+      hideAllOverlays();
       renderGarage();
       garageOverlay.style.display = 'flex';
     }
     btnGarage.addEventListener('click', openGarage);
     openGarageBtn.addEventListener('click', openGarage);
     closeGarageBtn.addEventListener('click', () => {
-      garageOverlay.style.display = 'none';
+      hideAllOverlays();
+      startOverlay.style.display = 'flex';
+    });
+
+    btnRanks.addEventListener('click', () => {
+      gameStarted = false;
+      if (engineGain) engineGain.gain.value = 0;
+      hideAllOverlays();
+      renderLeaderboard();
+      ranksOverlay.style.display = 'flex';
+    });
+    closeRanksBtn.addEventListener('click', () => {
+      hideAllOverlays();
       startOverlay.style.display = 'flex';
     });
 
@@ -701,8 +821,7 @@
 
     btnMenu.addEventListener('click', () => {
       gameStarted = false;
-      onlineOverlay.style.display = 'none';
-      garageOverlay.style.display = 'none';
+      hideAllOverlays();
       startOverlay.style.display = 'flex';
       if (engineGain) engineGain.gain.value = 0;
     });
@@ -738,8 +857,7 @@
     startBtn.addEventListener('click', () => {
       initAudio();
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      startOverlay.style.display = 'none';
-      garageOverlay.style.display = 'none';
+      hideAllOverlays();
       gameStarted = true;
       resetGame();
     });
@@ -840,6 +958,10 @@
         distanceKm: 0,
         nextTollKm: 5,
         tollBannerY: -120,
+        nextRivalKm: 2,
+        rival: null,
+        nextPoliceKm: 6,
+        police: null,
         timeOfDay: atm.timeOfDay,
         raining: atm.raining,
         envLabel: atm.label,
@@ -855,6 +977,110 @@
         earnedSummary: '',
       };
       updateHudFromState();
+    }
+
+    // --- PHASE 4: RIVAL AI RACER & POLICE INTERCEPTOR ---
+    function spawnRivalAI() {
+      const lane = Math.floor(Math.random() * LANES);
+      const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - 36) / 2;
+      state.rival = {
+        x, y: -90, w: 36, h: 64,
+        targetX: x, tilt: 0,
+        color: '#ef4444',
+        overtaken: false,
+      };
+      addPopup(canvas.width / 2 - 18, 95, 'RIVAL AI CHALLENGER AHEAD!', '#ff7b72');
+    }
+
+    function updateRivalAI(currentSpeed) {
+      const r = state.rival;
+      if (!r) return;
+
+      // Scan ahead for oncoming traffic in Rival's current lane
+      const curLane = Math.max(0, Math.min(LANES - 1, Math.floor((r.x + r.w / 2 - ROAD_LEFT) / LANE_WIDTH)));
+      const blocked = state.traffic.some((v) => {
+        const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
+        return vLane === curLane && Math.abs(v.y - r.y) < 155;
+      });
+
+      if (blocked) {
+        for (const offset of [-1, 1, -2, 2]) {
+          const cand = curLane + offset;
+          if (cand >= 0 && cand < LANES) {
+            const safe = !state.traffic.some((v) => {
+              const vLane = Math.floor((v.x + v.w / 2 - ROAD_LEFT) / LANE_WIDTH);
+              return vLane === cand && Math.abs(v.y - r.y) < 155;
+            });
+            if (safe) {
+              r.targetX = ROAD_LEFT + cand * LANE_WIDTH + (LANE_WIDTH - r.w) / 2;
+              break;
+            }
+          }
+        }
+      }
+
+      const dx = r.targetX - r.x;
+      r.x += dx * 0.14;
+      r.tilt = Math.max(-0.16, Math.min(0.16, dx * 0.012));
+
+      // Rival drives slightly slower than player's top cruise speed so player can overtake
+      r.y += currentSpeed - (state.baseSpeed + 1.15);
+
+      const p1 = state.players[0];
+      if (!r.overtaken && p1.alive && r.y > p1.y + p1.h) {
+        r.overtaken = true;
+        p1.score += 250;
+        p1.runCoins += 15;
+        broadcastSfx(960, 'triangle', 0.2, 0.09);
+        broadcastVfx('sparks', p1.x + p1.w / 2, p1.y, '#facc15');
+        addPopup(p1.x, p1.y - 22, '+250 RIVAL OVERTAKE!', '#facc15');
+      }
+
+      if (r.y > canvas.height + 140 || r.y < -260) {
+        state.rival = null;
+      }
+    }
+
+    function spawnPoliceChase() {
+      const p1 = state.players[0];
+      state.police = {
+        x: p1.x,
+        y: canvas.height + 60,
+        w: 38,
+        h: 66,
+        timer: 480, // 8 seconds pursuit at 60fps
+        sirenTick: 0,
+      };
+      broadcastSfx(620, 'sawtooth', 0.28, 0.09);
+      addPopup(canvas.width / 2 - 18, 110, 'POLICE INTERCEPTOR PURSUIT!', '#60a5fa');
+    }
+
+    function updatePoliceChase() {
+      const cop = state.police;
+      if (!cop) return;
+      const p1 = state.players[0];
+      if (!p1.alive) { state.police = null; return; }
+
+      cop.timer--;
+      cop.sirenTick++;
+      // Siren wail every ~0.7s
+      if (cop.sirenTick % 42 === 0) {
+        broadcastSfx(cop.sirenTick % 84 === 0 ? 780 : 580, 'sine', 0.22, 0.045);
+      }
+
+      // Pursuit positioning behind player
+      const targetY = p1.boosting ? canvas.height - 42 : canvas.height - 74;
+      cop.y += (targetY - cop.y) * 0.06;
+      cop.x += (p1.x - cop.x) * 0.07;
+
+      if (cop.timer <= 0) {
+        p1.score += 500;
+        p1.runCoins += 25;
+        broadcastSfx(1080, 'sine', 0.28, 0.1);
+        broadcastVfx('sparks', p1.x + p1.w / 2, p1.y, '#60a5fa');
+        addPopup(p1.x, p1.y - 24, '+500 PURSUIT ESCAPED!', '#60a5fa');
+        state.police = null;
+      }
     }
 
     function spawnTraffic() {
@@ -901,10 +1127,55 @@
 
     function addPopup(x, y, text, color) {
       if (state.popups.length > 14) state.popups.shift();
-      state.popups.push({ x, y, text, color, life: 45 });
+      state.popups.push({ x, y, text, color, life: 48 });
     }
 
-    function drawVehicle(v, isPlayer = false) {
+    function drawPoliceInterceptor(cop) {
+      const { x, y, w, h, sirenTick } = cop;
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+
+      // Police headlights
+      const beamGrad = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 - 95);
+      beamGrad.addColorStop(0, 'rgba(147, 197, 253, 0.35)');
+      beamGrad.addColorStop(1, 'rgba(147, 197, 253, 0)');
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2 + 4, -h / 2);
+      ctx.lineTo(-w / 2 - 22, -h / 2 - 95);
+      ctx.lineTo(w / 2 + 22, -h / 2 - 95);
+      ctx.lineTo(w / 2 - 4, -h / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Black & White Patrol Chassis
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 8); ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(-w / 2 + 2, -10, w - 4, 22);
+
+      // Flashing Red & Blue Siren Bar
+      const redActive = Math.floor(sirenTick / 6) % 2 === 0;
+      ctx.fillStyle = redActive ? '#ef4444' : '#7f1d1d';
+      ctx.shadowColor = redActive ? '#ef4444' : 'transparent';
+      ctx.shadowBlur = redActive ? 16 : 0;
+      ctx.fillRect(-13, -3, 12, 6);
+
+      ctx.fillStyle = !redActive ? '#3b82f6' : '#1e3a8a';
+      ctx.shadowColor = !redActive ? '#3b82f6' : 'transparent';
+      ctx.shadowBlur = !redActive ? 16 : 0;
+      ctx.fillRect(1, -3, 12, 6);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = 'bold 10px Segoe UI';
+      ctx.textAlign = 'center';
+      ctx.fillText(`INTERCEPTOR ${Math.ceil(cop.timer / 60)}s`, x + w / 2, y - 8);
+    }
+
+    function drawVehicle(v, isPlayer = false, tagOverride = null) {
       const { x, y, w, h, color, type, bodyStyle, shield, label, tilt = 0, boosting = false, braking = false } = v;
       const isNight = state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK';
 
@@ -967,18 +1238,15 @@
       ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, bodyStyle === 'suv' ? 5 : 8); ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Windshield & rear glass
       ctx.fillStyle = '#0d1117';
       ctx.fillRect(-w / 2 + 5, -h / 2 + 14, w - 10, 14);
       ctx.fillRect(-w / 2 + 6, h / 2 - 19, w - 12, 9);
 
       if (isPlayer) {
         if (bodyStyle === 'suv') {
-          // Roof rack bars for Thar 4x4
           ctx.fillStyle = '#161b22';
           ctx.fillRect(-w / 2 + 4, -4, w - 8, 16);
         } else if (bodyStyle === 'hyper') {
-          // Aero rear wing & twin stripes for BHARAT Hyper-EV
           ctx.fillStyle = '#facc15';
           ctx.fillRect(-5, -h / 2 + 4, 3, h - 8);
           ctx.fillRect(2, -h / 2 + 4, 3, h - 8);
@@ -1030,7 +1298,12 @@
 
       ctx.restore();
 
-      if (isPlayer && mode !== '1p') {
+      if (tagOverride) {
+        ctx.fillStyle = '#ff7b72';
+        ctx.font = 'bold 10px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(tagOverride, x + w / 2, y - 8);
+      } else if (isPlayer && mode !== '1p') {
         ctx.fillStyle = '#f0f6fc';
         ctx.font = 'bold 11px Segoe UI';
         ctx.textAlign = 'center';
@@ -1232,6 +1505,20 @@
         state.tollBannerY += currentSpeed;
       }
 
+      // Trigger Rival AI in 1P Solo every 3.5 KM
+      if (mode === '1p' && !state.rival && state.distanceKm >= state.nextRivalKm) {
+        spawnRivalAI();
+        state.nextRivalKm += 3.5;
+      }
+      updateRivalAI(currentSpeed);
+
+      // Trigger Police Interceptor Chase every 6 KM
+      if (!state.police && state.distanceKm >= state.nextPoliceKm) {
+        spawnPoliceChase();
+        state.nextPoliceKm += 6.5;
+      }
+      updatePoliceChase();
+
       state.spawnTimer++;
       const spawnInterval = Math.max(cfg.spawnMin, cfg.spawnStart - Math.floor(maxScore / 600));
       if (state.spawnTimer >= spawnInterval) { spawnTraffic(); state.spawnTimer = 0; }
@@ -1242,7 +1529,6 @@
       state.coinTimer++;
       if (state.coinTimer >= 165) { spawnCoinLine(); state.coinTimer = 0; }
 
-      // Highway Coins Pickup
       for (let i = state.coins.length - 1; i >= 0; i--) {
         const c = state.coins[i];
         c.y += currentSpeed * 0.9;
@@ -1261,7 +1547,6 @@
         if (collected || c.y > canvas.height + 40) state.coins.splice(i, 1);
       }
 
-      // Shield Orbs
       for (let i = state.pickups.length - 1; i >= 0; i--) {
         const orb = state.pickups[i];
         orb.y += currentSpeed * 0.85;
@@ -1327,6 +1612,8 @@
         state.earnedSummary = `+${totalEarned} Coins Banked! (${p1.runCoins} pickup + ${distanceBonus} km)`;
 
         const topRun = Math.max(p1.score, p2 ? p2.score : 0);
+        recordLeaderboardScore(driverName, getCarSpec(equippedCarId).name, state.distanceKm, topRun);
+
         if (topRun > bestScore) {
           bestScore = topRun;
           localStorage.setItem('highwayRushBest', bestScore);
@@ -1453,7 +1740,6 @@
         ctx.fillText('NHAI FASTag TOLL PLAZA', canvas.width / 2, state.tollBannerY + 17);
       }
 
-      // Golden Highway Coins
       state.coins.forEach((c) => {
         ctx.fillStyle = '#facc15';
         ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
@@ -1466,7 +1752,6 @@
         ctx.fillText('₹', c.x, c.y + 3.5);
       });
 
-      // Shield Orbs
       state.pickups.forEach((orb) => {
         ctx.fillStyle = 'rgba(57, 211, 83, 0.25)';
         ctx.beginPath(); ctx.arc(orb.x, orb.y, orb.r + 6, 0, Math.PI * 2); ctx.fill();
@@ -1475,7 +1760,9 @@
       });
 
       state.traffic.forEach((v) => drawVehicle(v, false));
+      if (state.rival) drawVehicle(state.rival, true, 'RIVAL AI');
       state.players.forEach((p) => { if (p.alive) drawVehicle(p, true); });
+      if (state.police) drawPoliceInterceptor(state.police);
 
       particles.forEach((pt) => {
         ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
@@ -1519,23 +1806,23 @@
         ctx.fillStyle = '#ff7b72';
         ctx.font = 'bold 30px Segoe UI';
         ctx.textAlign = 'center';
-        ctx.fillText(mode !== '1p' ? state.winnerText : 'CRASHED!', canvas.width / 2, 200);
+        ctx.fillText(mode !== '1p' ? state.winnerText : 'CRASHED!', canvas.width / 2, 195);
 
         ctx.fillStyle = '#58a6ff';
         ctx.font = 'bold 18px Segoe UI';
-        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 245);
+        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 238);
         if (mode !== '1p' && state.players[1]) {
           ctx.fillStyle = '#3fb950';
-          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 273);
+          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 266);
         }
 
         ctx.fillStyle = '#facc15';
         ctx.font = 'bold 13px Segoe UI';
-        ctx.fillText(state.earnedSummary || '', canvas.width / 2, 308);
+        ctx.fillText(state.earnedSummary || '', canvas.width / 2, 302);
 
         ctx.fillStyle = '#f0f6fc';
         ctx.font = '14px Segoe UI';
-        ctx.fillText('Press SPACE or Tap Screen to Race Again', canvas.width / 2, 355);
+        ctx.fillText('Press SPACE or Tap Screen to Race Again', canvas.width / 2, 348);
       }
 
       ctx.restore();
