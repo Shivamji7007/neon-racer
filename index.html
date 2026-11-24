@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Highway Rush v5.0 — Phase 1: Game Feel & Juice</title>
+  <title>Highway Rush v6.0 — Phase 2: Dynamic Atmosphere & Weather</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -46,14 +46,15 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
       margin-bottom: 6px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
     }
     .stat span { color: #58a6ff; }
     .p1-text span { color: #58a6ff; }
     .p2-text span { color: #3fb950; }
+    .env-text span { color: #ffa657; }
     #gameWrap {
       position: relative;
       display: flex;
@@ -77,16 +78,16 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 18px;
+      padding: 16px;
       text-align: center;
       z-index: 10;
     }
-    .overlay h1 { font-size: 23px; color: #ffa657; margin-bottom: 4px; }
-    .overlay p.sub { font-size: 12px; color: #8b949e; margin-bottom: 14px; }
-    .menu-group { margin-bottom: 12px; width: 100%; }
-    .menu-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 6px; }
-    .btn-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-    .swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
+    .overlay h1 { font-size: 22px; color: #ffa657; margin-bottom: 3px; }
+    .overlay p.sub { font-size: 12px; color: #8b949e; margin-bottom: 12px; }
+    .menu-group { margin-bottom: 10px; width: 100%; }
+    .menu-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 5px; }
+    .btn-row { display: flex; justify-content: center; gap: 7px; flex-wrap: wrap; }
+    .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #30363d; cursor: pointer; }
     .swatch.selected { border: 3px solid #ffffff; transform: scale(1.12); }
     .green-btn { background: #238636; border-color: #2ea043; font-size: 14px; padding: 8px 20px; }
     .green-btn:hover { background: #2ea043; }
@@ -144,8 +145,9 @@
     <div class="stat p1-text">P1: <span id="p1Score">0</span></div>
     <div class="stat p2-text" id="p2ScoreBox" style="display:none;">P2: <span id="p2Score">0</span></div>
     <div class="stat">BEST: <span id="best">0</span></div>
-    <div class="stat p1-text">P1 NITRO: <span id="p1Nitro">100%</span></div>
+    <div class="stat p1-text">NITRO: <span id="p1Nitro">100%</span></div>
     <div class="stat p2-text" id="p2NitroBox" style="display:none;">P2 NITRO: <span id="p2Nitro">100%</span></div>
+    <div class="stat env-text">ENV: <span id="envLabel">DAY • CLEAR</span></div>
   </div>
 
   <div id="gameWrap">
@@ -154,7 +156,7 @@
     <!-- SETUP MENU -->
     <div id="startOverlay" class="overlay">
       <h1>NH-44 HIGHWAY RUSH</h1>
-      <p class="sub">Phase 1: Physics, Drift Juice & Online Multiplayer</p>
+      <p class="sub">Phase 2: Day/Night Cycle, Monsoon Rain & Roadside World</p>
 
       <div class="menu-group">
         <div class="menu-label">Your Car Color</div>
@@ -175,9 +177,19 @@
         </div>
       </div>
 
-      <div class="btn-row">
+      <div class="menu-group">
+        <div class="menu-label">Atmosphere & Weather</div>
+        <div class="btn-row" id="weatherRow">
+          <button data-weather="dynamic" class="active">DYNAMIC</button>
+          <button data-weather="day">DAY</button>
+          <button data-weather="night">NIGHT</button>
+          <button data-weather="rain">MONSOON</button>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:4px;">
         <button id="startBtn" class="green-btn">START RACE</button>
-        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:8px 16px;">PLAY WITH FRIEND (CODE)</button>
+        <button id="openOnlineBtn" style="background:#1f6feb;border-color:#58a6ff;padding:8px 14px;">PLAY WITH FRIEND</button>
       </div>
     </div>
 
@@ -248,9 +260,10 @@
     const p1NitroEl = document.getElementById('p1Nitro');
     const p2NitroEl = document.getElementById('p2Nitro');
     const p2NitroBox = document.getElementById('p2NitroBox');
+    const envLabelEl = document.getElementById('envLabel');
 
-    const ROAD_LEFT = 50;
-    const ROAD_WIDTH = 320;
+    const ROAD_LEFT = 54;
+    const ROAD_WIDTH = 312;
     const LANES = 4;
     const LANE_WIDTH = ROAD_WIDTH / LANES;
 
@@ -264,6 +277,7 @@
     let selectedColor = '#2f81f7';
     let p2Color = '#3fb950';
     let difficulty = 'medium';
+    let weatherPref = 'dynamic';
 
     const DIFF_CONFIG = {
       easy:   { baseSpeed: 5.0, spawnMin: 38, spawnStart: 70 },
@@ -275,12 +289,31 @@
     let bestScore = Number.isFinite(rawBest) && rawBest > 0 ? rawBest : 0;
     bestEl.textContent = bestScore;
 
-    // --- LOCAL VFX STATE (Client-side particles, skidmarks, speed lines & shake) ---
+    // --- LOCAL VFX & WEATHER PARTICLES ---
     let particles = [];
     let skidMarks = [];
     let speedLines = [];
+    let rainDrops = [];
+    let roadProps = [];
     let shakeTime = 0;
     let shakeIntensity = 0;
+
+    function initPropsAndRain() {
+      rainDrops = [];
+      for (let i = 0; i < 65; i++) {
+        rainDrops.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          len: 10 + Math.random() * 12,
+          speed: 11 + Math.random() * 6,
+        });
+      }
+      roadProps = [];
+      for (let y = 0; y < canvas.height + 120; y += 110) {
+        roadProps.push({ y, side: 'left', kind: Math.random() < 0.6 ? 'tree' : 'lamp' });
+        roadProps.push({ y: y + 55, side: 'right', kind: Math.random() < 0.6 ? 'tree' : 'lamp' });
+      }
+    }
 
     function triggerShake(duration = 14, intensity = 7) {
       shakeTime = duration;
@@ -289,12 +322,11 @@
 
     function spawnParticles(x, y, color, count = 10, speedScale = 1, size = 3.5) {
       for (let i = 0; i < count; i++) {
-        if (particles.length > 140) particles.shift();
+        if (particles.length > 150) particles.shift();
         const angle = Math.random() * Math.PI * 2;
         const spd = (1 + Math.random() * 3.5) * speedScale;
         particles.push({
-          x,
-          y,
+          x, y,
           vx: Math.cos(angle) * spd,
           vy: Math.sin(angle) * spd,
           life: 18 + Math.random() * 14,
@@ -305,17 +337,17 @@
       }
     }
 
-    function spawnSmoke(x, y) {
-      if (particles.length > 140) particles.shift();
+    function spawnSmoke(x, y, isWaterSpray = false) {
+      if (particles.length > 150) particles.shift();
       particles.push({
         x: x + (Math.random() - 0.5) * 6,
         y,
-        vx: (Math.random() - 0.5) * 0.8,
-        vy: 1.5 + Math.random() * 1.5,
-        life: 16,
-        maxLife: 16,
-        color: 'rgba(200, 210, 220, 0.45)',
-        size: 4 + Math.random() * 3,
+        vx: (Math.random() - 0.5) * 1.1,
+        vy: 1.6 + Math.random() * 1.6,
+        life: 15,
+        maxLife: 15,
+        color: isWaterSpray ? 'rgba(186, 230, 253, 0.5)' : 'rgba(200, 210, 220, 0.45)',
+        size: isWaterSpray ? 3 + Math.random() * 2.5 : 4 + Math.random() * 3,
       });
     }
 
@@ -445,9 +477,7 @@
             state = data.state;
             updateHudFromState();
           }
-          if (data.type === 'sfx') {
-            playTone(data.freq, data.wave, data.dur, data.vol);
-          }
+          if (data.type === 'sfx') playTone(data.freq, data.wave, data.dur, data.vol);
           if (data.type === 'vfx') {
             if (data.kind === 'shake') triggerShake(14, 7);
             if (data.kind === 'sparks') spawnParticles(data.x, data.y, data.color, 14, 1.2, 3.5);
@@ -467,17 +497,13 @@
 
     function broadcastSfx(freq, wave, dur, vol) {
       playTone(freq, wave, dur, vol);
-      if (mode === 'host' && conn && conn.open) {
-        conn.send({ type: 'sfx', freq, wave, dur, vol });
-      }
+      if (mode === 'host' && conn && conn.open) conn.send({ type: 'sfx', freq, wave, dur, vol });
     }
 
     function broadcastVfx(kind, x = 0, y = 0, color = '#ffa657') {
       if (kind === 'shake') triggerShake(14, 7);
       if (kind === 'sparks') spawnParticles(x, y, color, 14, 1.2, 3.5);
-      if (mode === 'host' && conn && conn.open) {
-        conn.send({ type: 'vfx', kind, x, y, color });
-      }
+      if (mode === 'host' && conn && conn.open) conn.send({ type: 'vfx', kind, x, y, color });
     }
 
     createRoomBtn.addEventListener('click', () => createOnlineRoom(0));
@@ -508,9 +534,7 @@
 
     closeOnlineBtn.addEventListener('click', () => {
       onlineOverlay.style.display = 'none';
-      if (!gameStarted) {
-        startOverlay.style.display = 'flex';
-      }
+      if (!gameStarted) startOverlay.style.display = 'flex';
     });
 
     btnSound.addEventListener('click', () => {
@@ -531,11 +555,8 @@
         document.querySelectorAll('#p1Colors .swatch').forEach((s) => s.classList.remove('selected'));
         el.classList.add('selected');
         selectedColor = el.dataset.color;
-        if (mode === 'guest' && conn && conn.open) {
-          conn.send({ type: 'guestColor', color: selectedColor });
-        } else {
-          resetGame();
-        }
+        if (mode === 'guest' && conn && conn.open) conn.send({ type: 'guestColor', color: selectedColor });
+        else resetGame();
       });
     });
 
@@ -544,6 +565,15 @@
         document.querySelectorAll('#diffRow button').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         difficulty = btn.dataset.diff;
+        resetGame();
+      });
+    });
+
+    document.querySelectorAll('#weatherRow button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#weatherRow button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        weatherPref = btn.dataset.weather;
         resetGame();
       });
     });
@@ -570,11 +600,8 @@
     function triggerRestart() {
       if (!state.gameOver || !gameStarted) return;
       clearAllInputs();
-      if (mode === 'guest' && conn && conn.open) {
-        conn.send({ type: 'restart' });
-      } else {
-        resetGame();
-      }
+      if (mode === 'guest' && conn && conn.open) conn.send({ type: 'restart' });
+      else resetGame();
     }
 
     function bindTouch(id, prop) {
@@ -614,6 +641,19 @@
       };
     }
 
+    function resolveAtmosphere(distanceKm) {
+      if (weatherPref === 'day') return { timeOfDay: 'DAY', raining: false, label: 'DAY • CLEAR' };
+      if (weatherPref === 'night') return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT • CLEAR' };
+      if (weatherPref === 'rain') return { timeOfDay: 'DUSK', raining: true, label: 'MONSOON RAIN' };
+
+      // Dynamic cycle every 4 KM
+      const phase = Math.floor(distanceKm / 4) % 4;
+      if (phase === 0) return { timeOfDay: 'DAY', raining: false, label: 'DAY • CLEAR' };
+      if (phase === 1) return { timeOfDay: 'SUNSET', raining: false, label: 'SUNSET • GOLDEN' };
+      if (phase === 2) return { timeOfDay: 'NIGHT', raining: false, label: 'NIGHT • NEON' };
+      return { timeOfDay: 'NIGHT', raining: true, label: 'NIGHT • MONSOON' };
+    }
+
     function resetGame() {
       clearAllInputs();
       particles = [];
@@ -624,8 +664,10 @@
       const cfg = DIFF_CONFIG[difficulty];
       const isMulti = mode !== '1p';
       const players = isMulti
-        ? [createPlayer(ROAD_LEFT + 60, selectedColor, 'P1'), createPlayer(ROAD_LEFT + 220, p2Color, 'P2')]
+        ? [createPlayer(ROAD_LEFT + 58, selectedColor, 'P1'), createPlayer(ROAD_LEFT + 218, p2Color, 'P2')]
         : [createPlayer(canvas.width / 2 - 18, selectedColor, 'P1')];
+
+      const atm = resolveAtmosphere(0);
 
       state = {
         players,
@@ -636,6 +678,9 @@
         distanceKm: 0,
         nextTollKm: 5,
         tollBannerY: -120,
+        timeOfDay: atm.timeOfDay,
+        raining: atm.raining,
+        envLabel: atm.label,
         traffic: [],
         pickups: [],
         popups: [],
@@ -644,6 +689,7 @@
         gameOver: false,
         winnerText: '',
       };
+      updateHudFromState();
     }
 
     function spawnTraffic() {
@@ -687,31 +733,32 @@
 
     function drawVehicle(v, isPlayer = false) {
       const { x, y, w, h, color, type, shield, label, tilt = 0, boosting = false, braking = false } = v;
+      const isNight = state.timeOfDay === 'NIGHT';
 
       ctx.save();
       ctx.translate(x + w / 2, y + h / 2);
       ctx.rotate(tilt);
 
-      // Headlight beam cones for players
+      // Headlights for both players & traffic (brighter at night)
       if (isPlayer) {
-        const beamGrad = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 - 95);
-        beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.28)');
+        const beamLen = isNight ? 135 : 85;
+        const beamAlpha = isNight ? 0.42 : 0.22;
+        const beamGrad = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 - beamLen);
+        beamGrad.addColorStop(0, `rgba(254, 240, 138, ${beamAlpha})`);
         beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
         ctx.fillStyle = beamGrad;
         ctx.beginPath();
         ctx.moveTo(-w / 2 + 5, -h / 2);
-        ctx.lineTo(-w / 2 - 18, -h / 2 - 95);
-        ctx.lineTo(w / 2 + 18, -h / 2 - 95);
+        ctx.lineTo(-w / 2 - 22, -h / 2 - beamLen);
+        ctx.lineTo(w / 2 + 22, -h / 2 - beamLen);
         ctx.lineTo(w / 2 - 5, -h / 2);
         ctx.closePath();
         ctx.fill();
 
-        // Subtle neon underglow
         ctx.shadowColor = color;
-        ctx.shadowBlur = 14;
+        ctx.shadowBlur = isNight ? 20 : 12;
       }
 
-      // Drop shadow
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(-w / 2 + 4, -h / 2 + 6, w, h);
 
@@ -720,6 +767,9 @@
         ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 8); ctx.fill();
         ctx.fillStyle = '#f1c40f';
         ctx.fillRect(-w / 2 + 2, -h / 2 + 14, w - 4, h - 18);
+        ctx.fillStyle = '#ff4d4d';
+        ctx.fillRect(-w / 2 + 5, h / 2 - 4, 6, 3);
+        ctx.fillRect(w / 2 - 11, h / 2 - 4, 6, 3);
         ctx.restore();
         return;
       }
@@ -730,26 +780,25 @@
         ctx.fillRect(-w / 2 + 5, -h / 2 + 6, w - 10, h - 32);
         ctx.fillStyle = '#dc2626';
         ctx.beginPath(); ctx.roundRect(-w / 2, h / 2 - 22, w, 22, 5); ctx.fill();
+        ctx.fillStyle = '#ff4d4d';
+        ctx.fillRect(-w / 2 + 5, h / 2 - 4, 8, 3);
+        ctx.fillRect(w / 2 - 13, h / 2 - 4, 8, 3);
         ctx.restore();
         return;
       }
 
-      // Car body
       ctx.fillStyle = color;
       ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 8); ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Windshield & rear glass
       ctx.fillStyle = '#0d1117';
       ctx.fillRect(-w / 2 + 5, -h / 2 + 14, w - 10, 14);
       ctx.fillRect(-w / 2 + 6, h / 2 - 19, w - 12, 9);
 
       if (isPlayer) {
-        // Racing stripe
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(-2.5, -h / 2 + 4, 5, h - 8);
 
-        // Twin Nitro exhaust flames
         if (boosting && !state.gameOver) {
           const flameLen = 16 + Math.random() * 12;
           ctx.fillStyle = '#ff9f1c';
@@ -769,7 +818,6 @@
           ctx.fill();
         }
 
-        // Bright red brake lights when braking
         if (braking) {
           ctx.fillStyle = '#ff2a2a';
           ctx.shadowColor = '#ff2a2a';
@@ -780,7 +828,6 @@
         }
       }
 
-      // Headlights / Taillights
       ctx.fillStyle = isPlayer ? '#fef08a' : '#ff4d4d';
       ctx.fillRect(-w / 2 + 5, isPlayer ? -h / 2 + 2 : h / 2 - 5, 7, 4);
       ctx.fillRect(w / 2 - 12, isPlayer ? -h / 2 + 2 : h / 2 - 5, 7, 4);
@@ -793,7 +840,6 @@
 
       ctx.restore();
 
-      // Player tag above car (unrotated for readability)
       if (isPlayer && mode !== '1p') {
         ctx.fillStyle = '#f0f6fc';
         ctx.font = 'bold 11px Segoe UI';
@@ -816,21 +862,39 @@
         p2ScoreEl.textContent = p2.score;
         p2NitroEl.textContent = `${Math.round(p2.nitro)}%`;
       }
+      if (state.envLabel) envLabelEl.textContent = state.envLabel;
     }
 
     function updateLocalVfx() {
       const spd = state.currentSpeed || 6;
 
-      // Scroll and fade tyre skid marks
+      // Scroll roadside trees & streetlights
+      if (gameStarted && !state.gameOver) {
+        roadProps.forEach((prop) => {
+          prop.y += spd;
+          if (prop.y > canvas.height + 50) {
+            prop.y = -50;
+            prop.kind = Math.random() < 0.6 ? 'tree' : 'lamp';
+          }
+        });
+      }
+
+      // Rain animation
+      if (state.raining) {
+        rainDrops.forEach((r) => {
+          r.y += r.speed + spd * 0.6;
+          r.x -= 1.8;
+          if (r.y > canvas.height) { r.y = -15; r.x = Math.random() * (canvas.width + 40); }
+          if (r.x < 0) r.x += canvas.width;
+        });
+      }
+
       for (let i = skidMarks.length - 1; i >= 0; i--) {
         skidMarks[i].y += spd;
         skidMarks[i].alpha -= 0.015;
-        if (skidMarks[i].alpha <= 0 || skidMarks[i].y > canvas.height + 20) {
-          skidMarks.splice(i, 1);
-        }
+        if (skidMarks[i].alpha <= 0 || skidMarks[i].y > canvas.height + 20) skidMarks.splice(i, 1);
       }
 
-      // Generate skid marks & drift smoke for active players
       if (gameStarted && !state.gameOver) {
         state.players.forEach((p) => {
           if (!p.alive) return;
@@ -840,17 +904,17 @@
               skidMarks.push({ x: p.x + 6, y: p.y + p.h - 6, alpha: 0.45 });
               skidMarks.push({ x: p.x + p.w - 9, y: p.y + p.h - 6, alpha: 0.45 });
             }
-            if (Math.random() < 0.55) {
-              spawnSmoke(p.x + p.w / 2, p.y + p.h);
-            }
+            if (Math.random() < 0.55) spawnSmoke(p.x + p.w / 2, p.y + p.h, false);
+          } else if (state.raining && Math.random() < 0.45) {
+            // Water spray mist in monsoon rain
+            spawnSmoke(p.x + p.w / 2, p.y + p.h, true);
           }
         });
 
-        // High-speed Nitro wind lines along edges
         if (state.boostingAny && Math.random() < 0.7) {
           const leftSide = Math.random() < 0.5;
           speedLines.push({
-            x: leftSide ? 8 + Math.random() * 34 : canvas.width - 42 + Math.random() * 34,
+            x: leftSide ? 6 + Math.random() * 38 : canvas.width - 44 + Math.random() * 38,
             y: -40,
             len: 35 + Math.random() * 45,
             speed: spd * 2.2,
@@ -944,7 +1008,6 @@
         engineOsc.frequency.setTargetAtTime(48 + currentSpeed * 6.5, audioCtx.currentTime, 0.05);
       }
 
-      // Smooth steering momentum & tilt angle physics
       const minX = ROAD_LEFT + 6;
       const maxX = ROAD_LEFT + ROAD_WIDTH - 42;
 
@@ -954,7 +1017,6 @@
         const targetVx = (right ? 6.8 : 0) - (left ? 6.8 : 0);
         p.vx += (targetVx - p.vx) * 0.35;
         p.x = Math.max(minX, Math.min(maxX, p.x + p.vx));
-        // Smooth lean angle proportional to lateral velocity
         const targetTilt = (p.vx / 6.8) * 0.17;
         p.tilt += (targetTilt - p.tilt) * 0.28;
       }
@@ -964,6 +1026,15 @@
 
       state.roadOffset = (state.roadOffset + currentSpeed) % 48;
       state.distanceKm += currentSpeed * 0.0025;
+
+      // Update dynamic Day/Sunset/Night/Monsoon cycle
+      const atm = resolveAtmosphere(state.distanceKm);
+      if (atm.label !== state.envLabel) {
+        state.timeOfDay = atm.timeOfDay;
+        state.raining = atm.raining;
+        state.envLabel = atm.label;
+        addPopup(canvas.width / 2 - 18, 120, atm.label, '#ffa657');
+      }
 
       if (state.distanceKm >= state.nextTollKm) {
         state.tollBannerY = -60;
@@ -1053,9 +1124,7 @@
       }
 
       updateHudFromState();
-      if (mode === 'host' && conn && conn.open) {
-        conn.send({ type: 'state', state });
-      }
+      if (mode === 'host' && conn && conn.open) conn.send({ type: 'state', state });
     }
 
     function render() {
@@ -1066,37 +1135,87 @@
         ctx.translate(dx, dy);
       }
 
-      ctx.fillStyle = '#132a1c';
+      // Dynamic Shoulder & Asphalt palette by Time of Day
+      let grassColor = '#1b4332';
+      let roadColor = '#2b313a';
+      if (state.timeOfDay === 'SUNSET') {
+        grassColor = '#3f2e1d';
+        roadColor = '#27222b';
+      } else if (state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK') {
+        grassColor = '#0c1c14';
+        roadColor = '#161b22';
+      }
+
+      ctx.fillStyle = grassColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Roadside Trees & Streetlights
+      roadProps.forEach((prop) => {
+        const px = prop.side === 'left' ? 22 : canvas.width - 22;
+        if (prop.kind === 'tree') {
+          ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#082f1e' : '#15803d';
+          ctx.beginPath();
+          ctx.arc(px, prop.y, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#0d472e' : '#22c55e';
+          ctx.beginPath();
+          ctx.arc(px - 3, prop.y - 3, 9, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Sodium Highway Streetlight
+          ctx.fillStyle = '#6e7681';
+          ctx.fillRect(px - 2, prop.y - 2, 4, 4);
+          if (state.timeOfDay === 'NIGHT' || state.timeOfDay === 'DUSK' || state.timeOfDay === 'SUNSET') {
+            const glowX = prop.side === 'left' ? ROAD_LEFT + 14 : ROAD_LEFT + ROAD_WIDTH - 14;
+            const lampGrad = ctx.createRadialGradient(glowX, prop.y, 2, glowX, prop.y, 44);
+            lampGrad.addColorStop(0, 'rgba(251, 191, 36, 0.32)');
+            lampGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
+            ctx.fillStyle = lampGrad;
+            ctx.beginPath();
+            ctx.arc(glowX, prop.y, 44, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      });
+
+      // NH-44 Green Highway Milestone Board
       const milestoneY = ((state.distanceKm * 180) % (canvas.height + 120)) - 60;
       ctx.fillStyle = '#15803d';
-      ctx.fillRect(5, milestoneY, 40, 44);
+      ctx.fillRect(5, milestoneY, 42, 44);
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(6, milestoneY + 1, 38, 42);
+      ctx.strokeRect(6, milestoneY + 1, 40, 42);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px Segoe UI';
       ctx.textAlign = 'center';
-      ctx.fillText('NH-44', 25, milestoneY + 13);
-      ctx.fillText('DELHI', 25, milestoneY + 25);
-      ctx.fillText(`${Math.floor(state.distanceKm)} KM`, 25, milestoneY + 37);
+      ctx.fillText('NH-44', 26, milestoneY + 13);
+      ctx.fillText('DELHI', 26, milestoneY + 25);
+      ctx.fillText(`${Math.floor(state.distanceKm)} KM`, 26, milestoneY + 37);
 
-      ctx.fillStyle = '#21262d';
+      // Asphalt Road
+      ctx.fillStyle = roadColor;
       ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
 
-      // Tyre skid marks on asphalt
+      // Wet road sheen when raining
+      if (state.raining) {
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.06)';
+        ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
+      }
+
+      // Tyre skid marks
       skidMarks.forEach((sk) => {
         ctx.fillStyle = `rgba(10, 12, 16, ${sk.alpha})`;
         ctx.fillRect(sk.x, sk.y, 3, 10);
       });
 
+      // Rumble strips
       for (let y = -48 + state.roadOffset; y < canvas.height; y += 48) {
         ctx.fillStyle = Math.floor((y - state.roadOffset) / 48) % 2 === 0 ? '#da3633' : '#f0f6fc';
         ctx.fillRect(ROAD_LEFT - 8, y, 8, 24);
         ctx.fillRect(ROAD_LEFT + ROAD_WIDTH, y, 8, 24);
       }
 
+      // Lane dividers
       ctx.strokeStyle = 'rgba(240, 246, 252, 0.35)';
       ctx.lineWidth = 3;
       ctx.setLineDash([24, 24]);
@@ -1107,6 +1226,7 @@
       }
       ctx.setLineDash([]);
 
+      // Overhead FASTag Toll Plaza
       if (state.tollBannerY > -80 && state.tollBannerY < canvas.height + 60) {
         ctx.fillStyle = '#1f6feb';
         ctx.fillRect(ROAD_LEFT - 6, state.tollBannerY, ROAD_WIDTH + 12, 26);
@@ -1119,6 +1239,7 @@
         ctx.fillText('NHAI FASTag TOLL PLAZA', canvas.width / 2, state.tollBannerY + 17);
       }
 
+      // Shield Orbs
       state.pickups.forEach((orb) => {
         ctx.fillStyle = 'rgba(57, 211, 83, 0.25)';
         ctx.beginPath(); ctx.arc(orb.x, orb.y, orb.r + 6, 0, Math.PI * 2); ctx.fill();
@@ -1129,7 +1250,7 @@
       state.traffic.forEach((v) => drawVehicle(v, false));
       state.players.forEach((p) => { if (p.alive) drawVehicle(p, true); });
 
-      // Smoke & Spark particles
+      // Smoke, Water Spray & Spark Particles
       particles.forEach((pt) => {
         ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
         ctx.fillStyle = pt.color;
@@ -1139,7 +1260,19 @@
       });
       ctx.globalAlpha = 1;
 
-      // High-speed Nitro wind lines
+      // Monsoon Rain Streaks
+      if (state.raining) {
+        ctx.strokeStyle = 'rgba(186, 230, 253, 0.45)';
+        ctx.lineWidth = 1.4;
+        rainDrops.forEach((r) => {
+          ctx.beginPath();
+          ctx.moveTo(r.x, r.y);
+          ctx.lineTo(r.x - 2, r.y + r.len);
+          ctx.stroke();
+        });
+      }
+
+      // Nitro Wind Lines
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 2;
       speedLines.forEach((sl) => {
@@ -1149,6 +1282,7 @@
         ctx.stroke();
       });
 
+      // Popups
       state.popups.forEach((pop) => {
         ctx.fillStyle = pop.color;
         ctx.font = 'bold 13px Segoe UI';
@@ -1185,6 +1319,7 @@
       requestAnimationFrame(loop);
     }
 
+    initPropsAndRain();
     resetGame();
     loop();
   </script>
