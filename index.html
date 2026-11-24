@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Highway Rush — Arcade Edition</title>
+  <title>Highway Rush v3 — NH-44 Edition</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -14,48 +14,118 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       overflow: hidden;
-      user-select: none;
+      padding: 8px;
     }
-    #top-bar {
+    #topBar {
       display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 10px;
+      gap: 10px;
+      margin-bottom: 8px;
     }
     button {
       background: #21262d;
       color: #f0f6fc;
       border: 1px solid #30363d;
-      padding: 6px 14px;
       border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      font-size: 13px;
-      transition: background 0.15s, border-color 0.15s;
+      transition: 0.15s;
     }
-    button:hover { background: #30363d; border-color: #58a6ff; }
-    button.active { background: #1f6feb; border-color: #58a6ff; }
+    button:hover { border-color: #58a6ff; }
+    button.active {
+      background: #1f6feb;
+      border-color: #58a6ff;
+      color: #ffffff;
+    }
     #hud {
       display: flex;
-      gap: 22px;
-      margin-bottom: 10px;
-      font-size: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 18px;
+      margin-bottom: 8px;
+      font-size: 14px;
       font-weight: 700;
-      letter-spacing: 0.4px;
     }
     .stat span { color: #58a6ff; }
-    .p2-stat span { color: #7ee787; }
+    .p1-text span { color: #58a6ff; }
+    .p2-text span { color: #3fb950; }
+    #gameWrap {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
     canvas {
       border: 3px solid #30363d;
       border-radius: 8px;
       background: #161b22;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
     }
-    #controls {
-      margin-top: 10px;
+    #startOverlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 17, 23, 0.92);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      z-index: 10;
+    }
+    #startOverlay h1 {
+      font-size: 26px;
+      color: #ffa657;
+      margin-bottom: 4px;
+    }
+    #startOverlay p.sub {
       font-size: 13px;
+      color: #8b949e;
+      margin-bottom: 18px;
+    }
+    .menu-group {
+      margin-bottom: 14px;
+      width: 100%;
+    }
+    .menu-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+      margin-bottom: 6px;
+    }
+    .btn-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid #30363d;
+      cursor: pointer;
+    }
+    .swatch.selected {
+      border: 3px solid #ffffff;
+      transform: scale(1.12);
+    }
+    #startBtn {
+      margin-top: 10px;
+      background: #238636;
+      border-color: #2ea043;
+      font-size: 16px;
+      padding: 10px 28px;
+    }
+    #startBtn:hover { background: #2ea043; }
+    #controls {
+      margin-top: 8px;
+      font-size: 12px;
       color: #8b949e;
       text-align: center;
     }
@@ -63,81 +133,134 @@
       background: #21262d;
       border: 1px solid #30363d;
       border-radius: 4px;
-      padding: 2px 6px;
+      padding: 1px 5px;
       color: #c9d1d9;
       font-size: 11px;
     }
   </style>
 </head>
 <body>
-  <div id="top-bar">
-    <button id="btn-1p" class="active">1P SOLO</button>
-    <button id="btn-2p">2P SPLIT-KEYBOARD</button>
-    <button id="btn-sound">SOUND: ON</button>
+  <div id="topBar">
+    <button id="btn1P" class="active">1P SOLO</button>
+    <button id="btn2P">2P SPLIT-KEYBOARD</button>
+    <button id="btnSound">SOUND: ON</button>
+    <button id="btnMenu">SETUP MENU</button>
   </div>
 
   <div id="hud">
-    <div class="stat">SCORE: <span id="score">0</span></div>
+    <div class="stat p1-text">P1 SCORE: <span id="p1Score">0</span></div>
+    <div class="stat p2-text" id="p2ScoreBox" style="display:none;">P2 SCORE: <span id="p2Score">0</span></div>
     <div class="stat">BEST: <span id="best">0</span></div>
     <div class="stat">SPEED: <span id="speed">120</span> KM/H</div>
-    <div class="stat">P1 NITRO: <span id="nitro1">100%</span></div>
-    <div class="stat p2-stat" id="p2-hud" style="display:none;">P2 NITRO: <span id="nitro2">100%</span></div>
+    <div class="stat p1-text">P1 NITRO: <span id="p1Nitro">100%</span></div>
+    <div class="stat p2-text" id="p2NitroBox" style="display:none;">P2 NITRO: <span id="p2Nitro">100%</span></div>
   </div>
 
-  <canvas id="game" width="460" height="620"></canvas>
+  <div id="gameWrap">
+    <canvas id="game" width="440" height="600"></canvas>
+
+    <div id="startOverlay">
+      <h1>NH-44 HIGHWAY RUSH</h1>
+      <p class="sub">Choose your car color, difficulty & mode</p>
+
+      <div class="menu-group">
+        <div class="menu-label">P1 Car Color</div>
+        <div class="btn-row" id="p1Colors">
+          <div class="swatch selected" data-color="#2f81f7" style="background:#2f81f7;"></div>
+          <div class="swatch" data-color="#f85149" style="background:#f85149;"></div>
+          <div class="swatch" data-color="#f0883e" style="background:#f0883e;"></div>
+          <div class="swatch" data-color="#a371f7" style="background:#a371f7;"></div>
+        </div>
+      </div>
+
+      <div class="menu-group" id="p2ColorGroup" style="display:none;">
+        <div class="menu-label">P2 Car Color</div>
+        <div class="btn-row" id="p2Colors">
+          <div class="swatch selected" data-color="#3fb950" style="background:#3fb950;"></div>
+          <div class="swatch" data-color="#ffd33d" style="background:#ffd33d;"></div>
+          <div class="swatch" data-color="#39c5cf" style="background:#39c5cf;"></div>
+          <div class="swatch" data-color="#ff7b72" style="background:#ff7b72;"></div>
+        </div>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-label">Difficulty Level</div>
+        <div class="btn-row" id="diffRow">
+          <button data-diff="easy">EASY</button>
+          <button data-diff="medium" class="active">MEDIUM</button>
+          <button data-diff="hard">HARD</button>
+        </div>
+      </div>
+
+      <button id="startBtn">START RACE</button>
+    </div>
+  </div>
 
   <div id="controls">
-    <span id="ctrl-text">
-      Steer: <kbd>A</kbd>/<kbd>D</kbd> or <kbd>←</kbd>/<kbd>→</kbd> &nbsp;|&nbsp;
-      Boost: <kbd>W</kbd>/<kbd>↑</kbd> &nbsp;|&nbsp;
-      Brake: <kbd>S</kbd>/<kbd>↓</kbd> &nbsp;|&nbsp;
-      Restart: <kbd>Space</kbd>
-    </span>
+    P1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;|&nbsp;
+    P2: <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> &nbsp;|&nbsp;
+    Restart: <kbd>Space</kbd>
   </div>
 
   <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score');
+
+    const btn1P = document.getElementById('btn1P');
+    const btn2P = document.getElementById('btn2P');
+    const btnSound = document.getElementById('btnSound');
+    const btnMenu = document.getElementById('btnMenu');
+    const startOverlay = document.getElementById('startOverlay');
+    const startBtn = document.getElementById('startBtn');
+
+    const p1ScoreEl = document.getElementById('p1Score');
+    const p2ScoreEl = document.getElementById('p2Score');
+    const p2ScoreBox = document.getElementById('p2ScoreBox');
     const bestEl = document.getElementById('best');
     const speedEl = document.getElementById('speed');
-    const nitro1El = document.getElementById('nitro1');
-    const nitro2El = document.getElementById('nitro2');
-    const p2HudEl = document.getElementById('p2-hud');
-    const ctrlTextEl = document.getElementById('ctrl-text');
-    const btn1p = document.getElementById('btn-1p');
-    const btn2p = document.getElementById('btn-2p');
-    const btnSound = document.getElementById('btn-sound');
+    const p1NitroEl = document.getElementById('p1Nitro');
+    const p2NitroEl = document.getElementById('p2Nitro');
+    const p2NitroBox = document.getElementById('p2NitroBox');
+    const p2ColorGroup = document.getElementById('p2ColorGroup');
 
-    const ROAD_LEFT = 50;
-    const ROAD_WIDTH = 360;
+    const ROAD_LEFT = 55;
+    const ROAD_WIDTH = 330;
     const LANES = 4;
     const LANE_WIDTH = ROAD_WIDTH / LANES;
 
     let twoPlayerMode = false;
-    let soundEnabled = true;
-    let bestScore = Number(localStorage.getItem('highwayRushArcadeBest') || 0);
+    let muted = false;
+    let gameStarted = false;
+    let p1Color = '#2f81f7';
+    let p2Color = '#3fb950';
+    let difficulty = 'medium';
+
+    const DIFF_CONFIG = {
+      easy:   { baseSpeed: 5.0, spawnMin: 36, spawnStart: 68 },
+      medium: { baseSpeed: 6.2, spawnMin: 26, spawnStart: 56 },
+      hard:   { baseSpeed: 7.8, spawnMin: 19, spawnStart: 44 },
+    };
+
+    let bestScore = Number(localStorage.getItem('highwayRushBest') || 0);
     bestEl.textContent = bestScore;
 
-    // --- Procedural Web Audio Engine ---
+    // --- PROCEDURAL WEB AUDIO ENGINE ---
     let audioCtx = null;
     let engineOsc = null;
     let engineGain = null;
 
     function initAudio() {
       if (audioCtx) return;
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioContext();
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       engineOsc = audioCtx.createOscillator();
       engineGain = audioCtx.createGain();
       engineOsc.type = 'sawtooth';
       engineOsc.frequency.value = 55;
-      engineGain.gain.value = 0.03;
+      engineGain.gain.value = 0.025;
 
-      // Low-pass filter so engine hum sounds warm rather than harsh
       const filter = audioCtx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 260;
+      filter.frequency.value = 250;
 
       engineOsc.connect(filter);
       filter.connect(engineGain);
@@ -145,13 +268,12 @@
       engineOsc.start();
     }
 
-    function playTone(freq, duration, type = 'triangle', vol = 0.12) {
-      if (!soundEnabled || !audioCtx) return;
+    function playTone(freq, type, duration, vol = 0.08) {
+      if (!audioCtx || muted) return;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.4, audioCtx.currentTime + duration);
       gain.gain.setValueAtTime(vol, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
       osc.connect(gain);
@@ -160,85 +282,110 @@
       osc.stop(audioCtx.currentTime + duration);
     }
 
-    function playCrashSound() {
-      if (!soundEnabled || !audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(110, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(24, audioCtx.currentTime + 0.45);
-      gain.gain.setValueAtTime(0.22, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.45);
+    // --- UI & MENU HANDLERS ---
+    function setMode(is2P) {
+      twoPlayerMode = is2P;
+      btn1P.classList.toggle('active', !is2P);
+      btn2P.classList.toggle('active', is2P);
+      p2ScoreBox.style.display = is2P ? 'block' : 'none';
+      p2NitroBox.style.display = is2P ? 'block' : 'none';
+      p2ColorGroup.style.display = is2P ? 'block' : 'none';
+      resetGame();
     }
 
-    // --- Input Handling ---
-    const keys = {};
-    window.addEventListener('keydown', (e) => {
+    btn1P.addEventListener('click', () => setMode(false));
+    btn2P.addEventListener('click', () => setMode(true));
+
+    btnSound.addEventListener('click', () => {
+      muted = !muted;
+      btnSound.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
+      if (engineGain) engineGain.gain.value = muted ? 0 : 0.025;
+    });
+
+    btnMenu.addEventListener('click', () => {
+      gameStarted = false;
+      startOverlay.style.display = 'flex';
+      if (engineGain) engineGain.gain.value = 0;
+    });
+
+    document.querySelectorAll('#p1Colors .swatch').forEach((el) => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('#p1Colors .swatch').forEach((s) => s.classList.remove('selected'));
+        el.classList.add('selected');
+        p1Color = el.dataset.color;
+        resetGame();
+      });
+    });
+
+    document.querySelectorAll('#p2Colors .swatch').forEach((el) => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('#p2Colors .swatch').forEach((s) => s.classList.remove('selected'));
+        el.classList.add('selected');
+        p2Color = el.dataset.color;
+        resetGame();
+      });
+    });
+
+    document.querySelectorAll('#diffRow button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#diffRow button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        difficulty = btn.dataset.diff;
+        resetGame();
+      });
+    });
+
+    startBtn.addEventListener('click', () => {
       initAudio();
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      startOverlay.style.display = 'none';
+      gameStarted = true;
+      resetGame();
+    });
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
       keys[e.code] = true;
-      if (e.code === 'Space' && state.gameOver) resetGame();
+      if (e.code === 'Space' && state.gameOver && gameStarted) {
+        resetGame();
+      }
     });
     window.addEventListener('keyup', (e) => (keys[e.code] = false));
-
-    btn1p.onclick = () => {
-      twoPlayerMode = false;
-      btn1p.classList.add('active');
-      btn2p.classList.remove('active');
-      p2HudEl.style.display = 'none';
-      ctrlTextEl.innerHTML = 'Steer: <kbd>A</kbd>/<kbd>D</kbd> or <kbd>←</kbd>/<kbd>→</kbd> &nbsp;|&nbsp; Boost: <kbd>W</kbd>/<kbd>↑</kbd> &nbsp;|&nbsp; Brake: <kbd>S</kbd>/<kbd>↓</kbd> &nbsp;|&nbsp; Restart: <kbd>Space</kbd>';
-      resetGame();
-    };
-
-    btn2p.onclick = () => {
-      twoPlayerMode = true;
-      btn2p.classList.add('active');
-      btn1p.classList.remove('active');
-      p2HudEl.style.display = 'block';
-      ctrlTextEl.innerHTML = 'P1 (Blue): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;|&nbsp; P2 (Green): <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> &nbsp;|&nbsp; Restart: <kbd>Space</kbd>';
-      resetGame();
-    };
-
-    btnSound.onclick = () => {
-      soundEnabled = !soundEnabled;
-      btnSound.textContent = `SOUND: ${soundEnabled ? 'ON' : 'OFF'}`;
-      if (engineGain) engineGain.gain.value = soundEnabled && !state.gameOver ? 0.035 : 0;
-    };
 
     let state;
 
     function createPlayer(x, color, label) {
       return {
         x,
-        y: 495,
-        w: 38,
-        h: 70,
-        speedX: 6.2,
-        nitro: 100,
-        shield: false,
-        alive: true,
+        y: 485,
+        w: 36,
+        h: 66,
+        speedX: 6.5,
         color,
         label,
+        nitro: 100,
+        score: 0,
+        shield: false,
+        alive: true,
       };
     }
 
     function resetGame() {
+      const cfg = DIFF_CONFIG[difficulty];
       const players = twoPlayerMode
         ? [
-            createPlayer(ROAD_LEFT + 70, '#2f81f7', 'P1'),
-            createPlayer(ROAD_LEFT + 250, '#3fb950', 'P2'),
+            createPlayer(ROAD_LEFT + 65, p1Color, 'P1'),
+            createPlayer(ROAD_LEFT + 225, p2Color, 'P2'),
           ]
-        : [createPlayer(canvas.width / 2 - 19, '#2f81f7', 'P1')];
+        : [createPlayer(canvas.width / 2 - 18, p1Color, 'P1')];
 
       state = {
         players,
-        baseSpeed: 6,
-        score: 0,
+        baseSpeed: cfg.baseSpeed,
         roadOffset: 0,
+        distanceKm: 0,
+        nextTollKm: 5,
+        tollBannerY: -120,
         traffic: [],
         pickups: [],
         popups: [],
@@ -251,68 +398,104 @@
 
     function spawnTraffic() {
       const lane = Math.floor(Math.random() * LANES);
-      const colors = ['#ff7b72', '#d2a8ff', '#ffa657', '#79c0ff', '#f2cc60'];
-      const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - 38) / 2;
-      if (state.traffic.some((car) => car.y < 145)) return;
+      if (state.traffic.some((v) => v.y < 145)) return;
 
-      state.traffic.push({
-        x,
-        y: -90,
-        w: 38,
-        h: 70,
-        speed: 2.4 + Math.random() * 2.4,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        nearMissedBy: new Set(),
-      });
+      const roll = Math.random();
+      let type = 'car';
+      let w = 36, h = 66, speed = 2.6 + Math.random() * 2;
+      const carColors = ['#ff7b72', '#d2a8ff', '#79c0ff', '#e6edf3'];
+      let color = carColors[Math.floor(Math.random() * carColors.length)];
+
+      if (roll < 0.25) {
+        // Indian Auto-Rickshaw (Black & Yellow)
+        type = 'auto';
+        w = 30; h = 50; speed = 2.0; color = '#f1c40f';
+      } else if (roll > 0.78) {
+        // Indian Highway Cargo Truck
+        type = 'truck';
+        w = 42; h = 98; speed = 1.8; color = '#d97706';
+      }
+
+      const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - w) / 2;
+      state.traffic.push({ x, y: -110, w, h, speed, color, type, nearMissedBy: {} });
     }
 
-    function spawnShieldPickup() {
+    function spawnShield() {
       const lane = Math.floor(Math.random() * LANES);
       const x = ROAD_LEFT + lane * LANE_WIDTH + LANE_WIDTH / 2;
-      state.pickups.push({ x, y: -40, r: 14 });
+      state.pickups.push({ x, y: -40, r: 13 });
     }
 
-    function addPopup(x, y, text, color = '#fef08a') {
+    function addPopup(x, y, text, color) {
       state.popups.push({ x, y, text, color, life: 45 });
     }
 
-    function drawCar(p, isPlayer = false) {
-      const { x, y, w, h } = p;
+    function drawVehicle(v, isPlayer = false) {
+      const { x, y, w, h, color, type, shield, label } = v;
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(x + 4, y + 6, w, h);
 
-      ctx.fillStyle = p.color;
+      if (type === 'auto') {
+        // Auto-Rickshaw body
+        ctx.fillStyle = '#161b22';
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 8);
+        ctx.fill();
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(x + 2, y + 14, w - 4, h - 18);
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(x + w / 2 - 4, y + h - 4, 8, 4);
+        return;
+      }
+
+      if (type === 'truck') {
+        // Highway Cargo Truck
+        ctx.fillStyle = '#9a3412';
+        ctx.fillRect(x + 2, y, w - 4, h - 24);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(x + 5, y + 6, w - 10, h - 34);
+        // Cab
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.roundRect(x, y + h - 24, w, 24, 5);
+        ctx.fill();
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(x + 5, y + h - 12, w - 10, 8);
+        return;
+      }
+
+      // Standard Car / Player Car
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, 8);
       ctx.fill();
 
       ctx.fillStyle = '#0d1117';
-      ctx.fillRect(x + 6, y + 15, w - 12, 15);
-      ctx.fillRect(x + 7, y + h - 21, w - 14, 10);
+      ctx.fillRect(x + 5, y + 14, w - 10, 14);
+      ctx.fillRect(x + 6, y + h - 20, w - 12, 9);
 
       if (isPlayer) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(x + w / 2 - 2.5, y + 4, 5, h - 8);
-
         if (twoPlayerMode) {
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = '#f0f6fc';
           ctx.font = 'bold 11px Segoe UI';
           ctx.textAlign = 'center';
-          ctx.fillText(p.label, x + w / 2, y - 6);
-        }
-
-        if (p.shield) {
-          ctx.strokeStyle = '#58a6ff';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(x + w / 2, y + h / 2, h * 0.62, 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.fillText(label, x + w / 2, y - 6);
         }
       }
 
       ctx.fillStyle = isPlayer ? '#fef08a' : '#ff4d4d';
       ctx.fillRect(x + 5, isPlayer ? y + 2 : y + h - 5, 7, 4);
       ctx.fillRect(x + w - 12, isPlayer ? y + 2 : y + h - 5, 7, 4);
+
+      if (shield) {
+        ctx.strokeStyle = '#39d353';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h / 2, 42, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     function checkCollision(a, b, pad = 5) {
@@ -325,164 +508,203 @@
     }
 
     function update() {
-      if (state.gameOver) {
+      if (!gameStarted || state.gameOver) {
         if (engineGain) engineGain.gain.value = 0;
         return;
       }
 
-      let maxPlayerSpeed = state.baseSpeed + Math.min(state.score / 850, 7.5);
+      const cfg = DIFF_CONFIG[difficulty];
+      const p1 = state.players[0];
+      const p2 = state.players[1];
+
+      // Individual Nitro & Brake logic
+      const p1Boost = p1.alive && (twoPlayerMode ? keys['KeyW'] : (keys['KeyW'] || keys['ArrowUp'])) && p1.nitro > 1;
+      const p2Boost = twoPlayerMode && p2.alive && keys['ArrowUp'] && p2.nitro > 1;
+
+      const p1Brake = p1.alive && (twoPlayerMode ? keys['KeyS'] : (keys['KeyS'] || keys['ArrowDown']));
+      const p2Brake = twoPlayerMode && p2.alive && keys['ArrowDown'];
+
+      if (p1Boost) p1.nitro = Math.max(0, p1.nitro - 0.65);
+      else p1.nitro = Math.min(100, p1.nitro + 0.22);
+
+      if (p2) {
+        if (p2Boost) p2.nitro = Math.max(0, p2.nitro - 0.65);
+        else p2.nitro = Math.min(100, p2.nitro + 0.22);
+      }
+
+      const maxScore = Math.max(p1.score, p2 ? p2.score : 0);
+      let currentSpeed = state.baseSpeed + Math.min(maxScore / 950, 6.5);
+      if (p1Boost || p2Boost) currentSpeed *= 1.45;
+      if (p1Brake || p2Brake) currentSpeed *= 0.65;
+
+      if (engineOsc && !muted) {
+        engineGain.gain.value = 0.025;
+        engineOsc.frequency.setTargetAtTime(48 + currentSpeed * 6.5, audioCtx.currentTime, 0.05);
+      }
+
+      // Player steering & individual scoring
+      const minX = ROAD_LEFT + 6;
+      const maxX = ROAD_LEFT + ROAD_WIDTH - 42;
 
       state.players.forEach((p, idx) => {
         if (!p.alive) return;
+        const boostSelf = idx === 0 ? p1Boost : p2Boost;
+        p.score += Math.round(currentSpeed * (boostSelf ? 0.38 : 0.25));
 
-        const left = twoPlayerMode ? (idx === 0 ? keys['KeyA'] : keys['ArrowLeft']) : (keys['KeyA'] || keys['ArrowLeft']);
-        const right = twoPlayerMode ? (idx === 0 ? keys['KeyD'] : keys['ArrowRight']) : (keys['KeyD'] || keys['ArrowRight']);
-        const up = twoPlayerMode ? (idx === 0 ? keys['KeyW'] : keys['ArrowUp']) : (keys['KeyW'] || keys['ArrowUp']);
-        const down = twoPlayerMode ? (idx === 0 ? keys['KeyS'] : keys['ArrowDown']) : (keys['KeyS'] || keys['ArrowDown']);
-
-        p.boosting = up && p.nitro > 1;
-        if (p.boosting) {
-          p.nitro = Math.max(0, p.nitro - 0.65);
-          maxPlayerSpeed = Math.max(maxPlayerSpeed, (state.baseSpeed + Math.min(state.score / 850, 7.5)) * 1.5);
+        if (!twoPlayerMode) {
+          if (keys['ArrowLeft'] || keys['KeyA']) p.x -= p.speedX;
+          if (keys['ArrowRight'] || keys['KeyD']) p.x += p.speedX;
+        } else if (idx === 0) {
+          if (keys['KeyA']) p.x -= p.speedX;
+          if (keys['KeyD']) p.x += p.speedX;
         } else {
-          p.nitro = Math.min(100, p.nitro + 0.18);
+          if (keys['ArrowLeft']) p.x -= p.speedX;
+          if (keys['ArrowRight']) p.x += p.speedX;
         }
-
-        if (down && !twoPlayerMode) maxPlayerSpeed *= 0.65;
-        if (left) p.x -= p.speedX;
-        if (right) p.x += p.speedX;
-
-        const minX = ROAD_LEFT + 6;
-        const maxX = ROAD_LEFT + ROAD_WIDTH - p.w - 6;
         p.x = Math.max(minX, Math.min(maxX, p.x));
       });
 
-      // Player-to-player bump in 2P mode
-      if (twoPlayerMode && state.players[0].alive && state.players[1].alive) {
-        const [p1, p2] = state.players;
-        if (checkCollision(p1, p2, 0)) {
-          if (p1.x < p2.x) { p1.x -= 4; p2.x += 4; }
-          else { p1.x += 4; p2.x -= 4; }
-        }
+      state.roadOffset = (state.roadOffset + currentSpeed) % 48;
+      state.distanceKm += currentSpeed * 0.0025;
+
+      // Trigger NH-44 FASTag Toll Plaza every 5 KM
+      if (state.distanceKm >= state.nextTollKm) {
+        state.tollBannerY = -60;
+        state.nextTollKm += 5;
+        playTone(520, 'sine', 0.15, 0.06);
+      }
+      if (state.tollBannerY > -100 && state.tollBannerY < canvas.height + 80) {
+        state.tollBannerY += currentSpeed;
       }
 
-      // Dynamic engine sound frequency
-      if (engineOsc && engineGain && soundEnabled) {
-        engineGain.gain.value = 0.035;
-        engineOsc.frequency.value = 48 + maxPlayerSpeed * 5.2;
-      }
-
-      state.roadOffset = (state.roadOffset + maxPlayerSpeed) % 48;
-      state.score += Math.round(maxPlayerSpeed * 0.25);
-
-      // Spawners
+      // Traffic & Shield Spawners
       state.spawnTimer++;
-      const spawnInterval = Math.max(24, 56 - Math.floor(state.score / 500));
+      const spawnInterval = Math.max(cfg.spawnMin, cfg.spawnStart - Math.floor(maxScore / 600));
       if (state.spawnTimer >= spawnInterval) {
         spawnTraffic();
         state.spawnTimer = 0;
       }
 
       state.pickupTimer++;
-      if (state.pickupTimer >= 420) {
-        spawnShieldPickup();
+      if (state.pickupTimer >= 340) {
+        spawnShield();
         state.pickupTimer = 0;
       }
 
-      // Update Shield Pickups
+      // Shield Pickups
       for (let i = state.pickups.length - 1; i >= 0; i--) {
-        const pk = state.pickups[i];
-        pk.y += maxPlayerSpeed * 0.85;
+        const orb = state.pickups[i];
+        orb.y += currentSpeed * 0.85;
+        let collected = false;
+        state.players.forEach((p) => {
+          if (!p.alive) return;
+          if (Math.hypot(p.x + p.w / 2 - orb.x, p.y + p.h / 2 - orb.y) < 40) {
+            p.shield = true;
+            collected = true;
+            playTone(660, 'sine', 0.22, 0.1);
+            addPopup(p.x, p.y - 15, `${p.label} SHIELD!`, '#39d353');
+          }
+        });
+        if (collected || orb.y > canvas.height + 50) state.pickups.splice(i, 1);
+      }
+
+      // Traffic, Individual Near-Misses & Collisions
+      for (let i = state.traffic.length - 1; i >= 0; i--) {
+        const v = state.traffic[i];
+        v.y += currentSpeed - v.speed * 0.45;
 
         state.players.forEach((p) => {
           if (!p.alive) return;
-          const dist = Math.hypot(p.x + p.w / 2 - pk.x, p.y + p.h / 2 - pk.y);
-          if (dist < pk.r + 24) {
-            p.shield = true;
-            playTone(520, 0.22);
-            addPopup(p.x + p.w / 2, p.y - 12, 'SHIELD ACTIVE!', '#58a6ff');
-            state.pickups.splice(i, 1);
-          }
-        });
 
-        if (pk && pk.y > canvas.height + 40) state.pickups.splice(i, 1);
-      }
-
-      // Update Traffic, Near-Misses & Crashes
-      for (let i = state.traffic.length - 1; i >= 0; i--) {
-        const car = state.traffic[i];
-        car.y += maxPlayerSpeed - car.speed * 0.45;
-
-        state.players.forEach((p, idx) => {
-          if (!p.alive) return;
-
-          // Near-miss bonus check
-          const nearBox = { x: car.x - 16, y: car.y - 8, w: car.w + 32, h: car.h + 16 };
-          if (!car.nearMissedBy.has(idx) && !checkCollision(p, car) && checkCollision(p, nearBox, 0)) {
-            car.nearMissedBy.add(idx);
-            state.score += 100;
-            playTone(680, 0.14);
-            addPopup(p.x + p.w / 2, p.y - 16, '+100 NEAR MISS!', '#fef08a');
+          if (!v.nearMissedBy[p.label] && v.y > p.y && v.y < p.y + 42) {
+            const gap = Math.abs(p.x + p.w / 2 - (v.x + v.w / 2));
+            if (gap >= 34 && gap <= 68) {
+              v.nearMissedBy[p.label] = true;
+              p.score += 150;
+              playTone(880, 'triangle', 0.14, 0.07);
+              addPopup(p.x, p.y - 20, `${p.label} +150!`, '#ffa657');
+            }
           }
 
-          // Crash check
-          if (checkCollision(p, car)) {
+          if (checkCollision(p, v)) {
             if (p.shield) {
               p.shield = false;
               state.traffic.splice(i, 1);
-              playTone(240, 0.25, 'sawtooth');
-              addPopup(p.x + p.w / 2, p.y - 16, 'SHIELD SAVED!', '#7ee787');
+              playTone(180, 'sawtooth', 0.25, 0.12);
+              addPopup(p.x, p.y - 20, 'SHIELD SAVED!', '#58a6ff');
             } else {
               p.alive = false;
-              playCrashSound();
+              playTone(90, 'sawtooth', 0.45, 0.16);
             }
           }
         });
 
-        if (car.y > canvas.height + 100) state.traffic.splice(i, 1);
+        if (v.y > canvas.height + 120) state.traffic.splice(i, 1);
       }
 
-      // Check End Condition
+      // End-of-round check
       const alivePlayers = state.players.filter((p) => p.alive);
       if (alivePlayers.length === 0 || (twoPlayerMode && alivePlayers.length === 1)) {
         state.gameOver = true;
         if (twoPlayerMode) {
-          state.winnerText = alivePlayers.length === 1 ? `${alivePlayers[0].label} WINS!` : 'DOUBLE CRASH!';
+          state.winnerText =
+            alivePlayers.length === 1 ? `${alivePlayers[0].label} WINS!` : 'DOUBLE CRASH!';
         }
-        if (state.score > bestScore) {
-          bestScore = state.score;
-          localStorage.setItem('highwayRushArcadeBest', bestScore);
+        const topRun = Math.max(p1.score, p2 ? p2.score : 0);
+        if (topRun > bestScore) {
+          bestScore = topRun;
+          localStorage.setItem('highwayRushBest', bestScore);
           bestEl.textContent = bestScore;
         }
       }
 
-      // Floating Popups
       for (let i = state.popups.length - 1; i >= 0; i--) {
-        state.popups[i].y -= 1.1;
+        state.popups[i].y -= 1.2;
         state.popups[i].life--;
         if (state.popups[i].life <= 0) state.popups.splice(i, 1);
       }
 
-      // HUD
-      scoreEl.textContent = state.score;
-      speedEl.textContent = Math.round(maxPlayerSpeed * 18);
-      nitro1El.textContent = `${Math.round(state.players[0].nitro)}%`;
-      if (twoPlayerMode) nitro2El.textContent = `${Math.round(state.players[1].nitro)}%`;
+      // Update HUD
+      p1ScoreEl.textContent = p1.score;
+      p1NitroEl.textContent = `${Math.round(p1.nitro)}%`;
+      if (p2) {
+        p2ScoreEl.textContent = p2.score;
+        p2NitroEl.textContent = `${Math.round(p2.nitro)}%`;
+      }
+      speedEl.textContent = Math.round(currentSpeed * 18);
     }
 
     function render() {
+      // Grass shoulders
       ctx.fillStyle = '#132a1c';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // NH-44 Green Highway Milestone Board on left shoulder
+      const milestoneY = ((state.distanceKm * 180) % (canvas.height + 120)) - 60;
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(6, milestoneY, 42, 46);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(7, milestoneY + 1, 40, 44);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px Segoe UI';
+      ctx.textAlign = 'center';
+      ctx.fillText('NH-44', 27, milestoneY + 14);
+      ctx.fillText('DELHI', 27, milestoneY + 26);
+      ctx.fillText(`${Math.floor(state.distanceKm)} KM`, 27, milestoneY + 39);
+
+      // Asphalt road
       ctx.fillStyle = '#21262d';
       ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
 
+      // Rumble strips
       for (let y = -48 + state.roadOffset; y < canvas.height; y += 48) {
         ctx.fillStyle = Math.floor((y - state.roadOffset) / 48) % 2 === 0 ? '#da3633' : '#f0f6fc';
         ctx.fillRect(ROAD_LEFT - 8, y, 8, 24);
         ctx.fillRect(ROAD_LEFT + ROAD_WIDTH, y, 8, 24);
       }
 
+      // Lane dividers
       ctx.strokeStyle = 'rgba(240, 246, 252, 0.35)';
       ctx.lineWidth = 3;
       ctx.setLineDash([24, 24]);
@@ -496,66 +718,69 @@
       }
       ctx.setLineDash([]);
 
-      // Shield Orbs
-      state.pickups.forEach((pk) => {
-        ctx.fillStyle = 'rgba(88, 166, 255, 0.25)';
-        ctx.beginPath();
-        ctx.arc(pk.x, pk.y, pk.r + 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#58a6ff';
-        ctx.beginPath();
-        ctx.arc(pk.x, pk.y, pk.r, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#0d1117';
-        ctx.font = 'bold 12px Segoe UI';
+      // Overhead FASTag Toll Gantry
+      if (state.tollBannerY > -80 && state.tollBannerY < canvas.height + 60) {
+        ctx.fillStyle = 'rgba(255, 166, 87, 0.25)';
+        ctx.fillRect(ROAD_LEFT, state.tollBannerY + 28, ROAD_WIDTH, 10);
+        ctx.fillStyle = '#1f6feb';
+        ctx.fillRect(ROAD_LEFT - 6, state.tollBannerY, ROAD_WIDTH + 12, 28);
+        ctx.strokeStyle = '#f0f6fc';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ROAD_LEFT - 6, state.tollBannerY, ROAD_WIDTH + 12, 28);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 13px Segoe UI';
         ctx.textAlign = 'center';
-        ctx.fillText('S', pk.x, pk.y + 4);
+        ctx.fillText('NHAI FASTag TOLL PLAZA — DRIVE THROUGH', canvas.width / 2, state.tollBannerY + 19);
+      }
+
+      // Shield Orbs
+      state.pickups.forEach((orb) => {
+        ctx.fillStyle = 'rgba(57, 211, 83, 0.25)';
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, orb.r + 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#39d353';
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+        ctx.fill();
       });
 
-      state.traffic.forEach((car) => drawCar(car, false));
-
+      state.traffic.forEach((v) => drawVehicle(v, false));
       state.players.forEach((p) => {
-        if (!p.alive) return;
-        drawCar(p, true);
-        if (p.boosting && !state.gameOver) {
-          ctx.fillStyle = '#ff9f1c';
-          ctx.beginPath();
-          ctx.moveTo(p.x + 11, p.y + p.h);
-          ctx.lineTo(p.x + p.w / 2, p.y + p.h + 18 + Math.random() * 8);
-          ctx.lineTo(p.x + p.w - 11, p.y + p.h);
-          ctx.fill();
-        }
+        if (p.alive) drawVehicle(p, true);
       });
 
-      // Popups
+      // Floating Popups
       state.popups.forEach((pop) => {
-        ctx.globalAlpha = Math.min(1, pop.life / 20);
         ctx.fillStyle = pop.color;
         ctx.font = 'bold 13px Segoe UI';
         ctx.textAlign = 'center';
-        ctx.fillText(pop.text, pop.x, pop.y);
-        ctx.globalAlpha = 1;
+        ctx.fillText(pop.text, pop.x + 18, pop.y);
       });
 
       // Game Over Overlay
       if (state.gameOver) {
-        ctx.fillStyle = 'rgba(13, 17, 23, 0.84)';
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.85)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = twoPlayerMode ? '#7ee787' : '#ff7b72';
-        ctx.font = 'bold 34px Segoe UI';
+        ctx.fillStyle = '#ff7b72';
+        ctx.font = 'bold 32px Segoe UI';
         ctx.textAlign = 'center';
-        ctx.fillText(twoPlayerMode ? state.winnerText : 'CRASHED!', canvas.width / 2, 265);
-
-        ctx.fillStyle = '#f0f6fc';
-        ctx.font = '20px Segoe UI';
-        ctx.fillText(`Final Score: ${state.score}`, canvas.width / 2, 310);
+        ctx.fillText(twoPlayerMode ? state.winnerText : 'CRASHED!', canvas.width / 2, 240);
 
         ctx.fillStyle = '#58a6ff';
+        ctx.font = 'bold 18px Segoe UI';
+        ctx.fillText(`P1 Score: ${state.players[0].score}`, canvas.width / 2, 285);
+
+        if (twoPlayerMode && state.players[1]) {
+          ctx.fillStyle = '#3fb950';
+          ctx.fillText(`P2 Score: ${state.players[1].score}`, canvas.width / 2, 315);
+        }
+
+        ctx.fillStyle = '#f0f6fc';
         ctx.font = '15px Segoe UI';
-        ctx.fillText('Press SPACE to Race Again', canvas.width / 2, 355);
+        ctx.fillText('Press SPACE to Race Again  |  Click SETUP MENU to Customize', canvas.width / 2, 365);
       }
     }
 
