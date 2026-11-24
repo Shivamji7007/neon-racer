@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Highway Rush v8.4 — Pro Studio Edition</title>
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- FIX: jsDelivr fallback if unpkg is slow/blocked -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
+    onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s);"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     body {
       background: radial-gradient(circle at top, #161b22 0%, #090c10 100%);
       color: #f0f6fc;
@@ -36,6 +38,7 @@
       font-weight: 700;
       cursor: pointer;
       transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+      touch-action: manipulation; /* FIX: no double-tap zoom on buttons */
     }
     button:hover { border-color: #58a6ff; }
     button:active { transform: scale(0.97); }
@@ -154,6 +157,7 @@
       text-align: center;
       width: 130px;
       user-select: text;
+      -webkit-user-select: text; /* FIX: iOS Safari needs the prefixed override to allow typing */
     }
     .coin-pill {
       background: rgba(250, 204, 21, 0.14);
@@ -309,6 +313,7 @@
       text-transform: uppercase;
       letter-spacing: 2px;
       user-select: text;
+      -webkit-user-select: text; /* FIX: iOS Safari typing */
     }
     #roomCodeDisplay {
       font-size: 24px;
@@ -328,6 +333,8 @@
       background: #21262d;
       border: 1px solid #484f58;
       border-radius: 8px;
+      touch-action: none;                       /* FIX: no scroll/zoom while holding controls */
+      -webkit-tap-highlight-color: transparent;
     }
     .touch-btn:active { background: #1f6feb; }
     #controls { margin-top: 5px; font-size: 11px; color: #8b949e; text-align: center; }
@@ -493,7 +500,8 @@
       <div class="menu-group">
         <div class="menu-label">Or Enter Friend's Code:</div>
         <div class="btn-row">
-          <input id="joinCodeInput" class="code-input" inputmode="numeric" maxlength="6" placeholder="e.g. 4821" />
+          <!-- FIX: 4 digits only, matches the room-code format and the JS validation -->
+          <input id="joinCodeInput" class="code-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="e.g. 4821" />
           <button id="joinRoomBtn" class="blue-btn" style="padding:7px 14px;">JOIN ROOM</button>
         </div>
         <p id="joinStatus" style="font-size:12px; color:#8b949e; margin-top:6px;"></p>
@@ -511,7 +519,7 @@
   </div>
 
   <div id="controls">
-    Drive: <b>W A S D</b> / <b>Arrows</b> / Touch &nbsp;|&nbsp; Pause: <b>P</b> or <b>Esc</b> &nbsp;|&nbsp; Restart: <b>Space</b>
+    Drive: <b>W A S D</b> / <b>Arrows</b> / Touch &nbsp;|&nbsp; 2P: P1 = <b>WASD</b>, P2 = <b>Arrows</b> &nbsp;|&nbsp; Pause: <b>P</b> or <b>Esc</b> &nbsp;|&nbsp; Restart: <b>Space</b>
   </div>
 
   <script src="game.js"></script>
