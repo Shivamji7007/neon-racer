@@ -3,6 +3,25 @@ const ctx = canvas.getContext('2d');
 const previewCanvas = document.getElementById('carPreviewCanvas');
 const pCtx = previewCanvas.getContext('2d');
 
+// FIX: roundRect polyfill for older browsers (Safari < 16, older Firefox)
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.max(0, Math.min(r || 0, w / 2, h / 2));
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+  };
+}
+
+// FIX: localStorage can throw (private mode / blocked storage) -> safe wrapper
+const store = {
+  get(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (_) {} },
+};
+
 const btn1P = document.getElementById('btn1P');
 const btn2P = document.getElementById('btn2P');
 const btnOnline = document.getElementById('btnOnline');
@@ -54,22 +73,27 @@ const ROAD_WIDTH = 312;
 const LANES = 4;
 const LANE_WIDTH = ROAD_WIDTH / LANES;
 
-document.querySelectorAll('button').forEach((b) => {
-  b.addEventListener('click', () => b.blur());
+// FIX: dynamically created buttons (garage) were never blurred, so Space re-triggered them.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('button');
+  if (b) b.blur();
 });
 
+const isShown = (el) => getComputedStyle(el).display !== 'none';
+const isOnline = () => mode === 'host' || mode === 'guest';
+
 // --- DRIVER NAME & TOP-5 LEADERBOARD ---
-let driverName = localStorage.getItem('highwayRushDriver') || 'Shivam';
+let driverName = store.get('highwayRushDriver', 'Shivam');
 driverNameInput.value = driverName;
 driverNameInput.addEventListener('input', () => {
   driverName = driverNameInput.value.trim() || 'Driver';
-  localStorage.setItem('highwayRushDriver', driverName);
+  store.set('highwayRushDriver', driverName);
 });
 
 let leaderboard = [];
 try {
-  const savedLb = JSON.parse(localStorage.getItem('highwayRushLeaderboard') || '[]');
-  if (Array.isArray(savedLb)) leaderboard = savedLb;
+  const savedLb = JSON.parse(store.get('highwayRushLeaderboard', '[]'));
+  if (Array.isArray(savedLb)) leaderboard = savedLb.filter((e) => e && typeof e === 'object');
 } catch (_) {}
 
 function recordLeaderboardScore(name, carName, distKm, score) {
@@ -82,7 +106,7 @@ function recordLeaderboardScore(name, carName, distKm, score) {
   });
   leaderboard.sort((a, b) => b.score - a.score);
   leaderboard = leaderboard.slice(0, 5);
-  localStorage.setItem('highwayRushLeaderboard', JSON.stringify(leaderboard));
+  store.set('highwayRushLeaderboard', JSON.stringify(leaderboard));
 }
 
 function renderLeaderboard() {
@@ -128,16 +152,19 @@ const CARS = [
   { id: 'bharat', name: 'BHARAT Hyper-EV', tag: 'Prototype Supercar', cost: 1200, speedBonus: 1.8, handling: 8.4, nitroDrain: 0.42, nitroRegen: 0.34, bodyStyle: 'hyper', spdPct: 98, hndPct: 95, nitPct: 96 },
 ];
 
-const rawCoins = Number(localStorage.getItem('highwayRushCoins'));
+const rawCoins = Number(store.get('highwayRushCoins', 0));
 let totalCoins = Number.isFinite(rawCoins) && rawCoins >= 0 ? rawCoins : 0;
 
 let unlockedCars = ['swift'];
 try {
-  const savedUnlocked = JSON.parse(localStorage.getItem('highwayRushUnlocked') || '["swift"]');
-  if (Array.isArray(savedUnlocked) && savedUnlocked.length > 0) unlockedCars = savedUnlocked;
+  const savedUnlocked = JSON.parse(store.get('highwayRushUnlocked', '["swift"]'));
+  if (Array.isArray(savedUnlocked)) unlockedCars = savedUnlocked;
 } catch (_) {}
+// FIX: sanitize saved ids (corrupt/old data could leave unknown ids or no default car)
+unlockedCars = unlockedCars.filter((id) => CARS.some((c) => c.id === id));
+if (!unlockedCars.includes('swift')) unlockedCars.unshift('swift');
 
-let equippedCarId = localStorage.getItem('highwayRushEquipped') || 'swift';
+let equippedCarId = store.get('highwayRushEquipped', 'swift');
 if (!unlockedCars.includes(equippedCarId)) equippedCarId = 'swift';
 
 let selectedColor = '#2f81f7';
@@ -200,9 +227,9 @@ function renderCarPreviewCard() {
 }
 
 function saveEconomy() {
-  localStorage.setItem('highwayRushCoins', String(Math.floor(totalCoins)));
-  localStorage.setItem('highwayRushUnlocked', JSON.stringify(unlockedCars));
-  localStorage.setItem('highwayRushEquipped', equippedCarId);
+  store.set('highwayRushCoins', Math.floor(totalCoins));
+  store.set('highwayRushUnlocked', JSON.stringify(unlockedCars));
+  store.set('highwayRushEquipped', equippedCarId);
   coinsHudEl.textContent = Math.floor(totalCoins);
   homeCoinsPill.textContent = `₹ ${Math.floor(totalCoins)}`;
   renderCarPreviewCard();
@@ -266,7 +293,7 @@ function renderGarage() {
           resetGame();
         } else {
           actionBtn.textContent = `NEED ${car.cost - Math.floor(totalCoins)} MORE`;
-          setTimeout(() => renderGarage(), 1100);
+          setTimeout(() => { if (isShown(garageOverlay)) renderGarage(); }, 1100);
         }
       };
     }
@@ -283,6 +310,7 @@ let p2Color = '#3fb950';
 let p2CarId = 'swift';
 let difficulty = 'medium';
 let weatherPref = 'dynamic';
+let guestBanked = false;
 
 const DIFF_CONFIG = {
   easy:   { baseSpeed: 5.0, spawnMin: 38, spawnStart: 70 },
@@ -290,7 +318,7 @@ const DIFF_CONFIG = {
   hard:   { baseSpeed: 7.6, spawnMin: 22, spawnStart: 46 },
 };
 
-const rawBest = Number(localStorage.getItem('highwayRushBest'));
+const rawBest = Number(store.get('highwayRushBest', 0));
 let bestScore = Number.isFinite(rawBest) && rawBest > 0 ? rawBest : 0;
 bestEl.textContent = bestScore;
 
@@ -359,20 +387,25 @@ function spawnSmoke(x, y, isWaterSpray = false) {
 // --- PROCEDURAL WEB AUDIO ---
 let audioCtx = null, engineOsc = null, engineGain = null;
 function initAudio() {
-  if (audioCtx) return;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  engineOsc = audioCtx.createOscillator();
-  engineGain = audioCtx.createGain();
-  engineOsc.type = 'sawtooth';
-  engineOsc.frequency.value = 55;
-  engineGain.gain.value = 0.02;
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 250;
-  engineOsc.connect(filter);
-  filter.connect(engineGain);
-  engineGain.connect(audioCtx.destination);
-  engineOsc.start();
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      engineOsc = audioCtx.createOscillator();
+      engineGain = audioCtx.createGain();
+      engineOsc.type = 'sawtooth';
+      engineOsc.frequency.value = 55;
+      engineGain.gain.value = 0;
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 250;
+      engineOsc.connect(filter);
+      filter.connect(engineGain);
+      engineGain.connect(audioCtx.destination);
+      engineOsc.start();
+    }
+    // FIX: always try to resume (autoplay policy), not only on race start
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (_) { audioCtx = null; engineOsc = null; engineGain = null; }
 }
 
 function playTone(freq, type, duration, vol = 0.08) {
@@ -392,11 +425,17 @@ function playTone(freq, type, duration, vol = 0.08) {
 // --- PEERJS ONLINE MULTIPLAYER ---
 let peer = null;
 let conn = null;
-let guestInput = { left: false, right: false, up: false, down: false };
+const NO_INPUT = () => ({ left: false, right: false, up: false, down: false });
+let guestInput = NO_INPUT();
 
+// FIX: null out refs BEFORE closing so 'close' handlers can't recurse into quitToHome
 function cleanupPeer() {
-  if (conn) { conn.close(); conn = null; }
-  if (peer) { peer.destroy(); peer = null; }
+  const c = conn, p = peer;
+  conn = null;
+  peer = null;
+  guestInput = NO_INPUT();
+  try { if (c) c.close(); } catch (_) {}
+  try { if (p) p.destroy(); } catch (_) {}
 }
 
 function resetOnlineLobbyUI() {
@@ -408,6 +447,7 @@ function resetOnlineLobbyUI() {
 
 function createOnlineRoom(retryCount = 0) {
   cleanupPeer();
+  initAudio(); // FIX: inside user gesture so audio works when race auto-starts
   if (typeof Peer === 'undefined') {
     document.getElementById('hostBox').style.display = 'block';
     document.getElementById('hostStatus').textContent = 'PeerJS failed to load. Check internet/adblocker.';
@@ -419,73 +459,96 @@ function createOnlineRoom(retryCount = 0) {
   document.getElementById('roomCodeDisplay').textContent = code;
   document.getElementById('hostStatus').textContent = 'Creating room...';
 
-  peer = new Peer(peerId);
-  peer.on('open', () => {
+  const myPeer = new Peer(peerId);
+  peer = myPeer;
+  myPeer.on('open', () => {
+    if (peer !== myPeer) return;
     document.getElementById('hostStatus').textContent = 'Room ready! Waiting for friend...';
   });
-  peer.on('connection', (connection) => {
+  myPeer.on('connection', (connection) => {
+    if (peer !== myPeer) { connection.close(); return; }
+    // FIX: reject extra guests instead of silently replacing the active connection
+    if (conn && conn.open) { connection.close(); return; }
     conn = connection;
     document.getElementById('hostStatus').textContent = 'Friend connected! Starting race...';
-    conn.on('data', (data) => {
-      if (data.type === 'input') guestInput = data.keys;
+    connection.on('data', (data) => {
+      if (!data) return;
+      if (data.type === 'input' && data.keys) guestInput = data.keys;
       if (data.type === 'guestProfile') {
         if (data.color) p2Color = data.color;
         if (data.carId) p2CarId = data.carId;
         if (state && state.players[1]) {
           const spec = getCarSpec(p2CarId);
-          state.players[1].color = p2Color;
-          state.players[1].bodyStyle = spec.bodyStyle;
-          state.players[1].handling = spec.handling;
-          state.players[1].nitroDrain = spec.nitroDrain;
-          state.players[1].nitroRegen = spec.nitroRegen;
+          const g = state.players[1];
+          g.color = p2Color;
+          g.bodyStyle = spec.bodyStyle;
+          g.w = spec.bodyStyle === 'suv' ? 38 : 36;
+          g.handling = spec.handling;
+          g.nitroDrain = spec.nitroDrain;
+          g.nitroRegen = spec.nitroRegen;
         }
       }
-      if (data.type === 'restart' && state.gameOver) {
+      if (data.type === 'restart' && state && state.gameOver) {
         resetGame();
         if (conn && conn.open) conn.send({ type: 'state', state });
       }
     });
-    conn.on('close', () => {
-      quitToHome();
+    connection.on('close', () => {
+      if (conn === connection) quitToHome();
     });
     setTimeout(() => {
+      // FIX: lobby may have been closed / guest left during the 600ms delay
+      if (conn !== connection || !connection.open) return;
       setActiveMode('host');
       startRaceSession();
     }, 600);
   });
-  peer.on('error', (err) => {
+  myPeer.on('error', (err) => {
+    if (peer !== myPeer) return;
     if (err.type === 'unavailable-id' && retryCount < 3) createOnlineRoom(retryCount + 1);
     else document.getElementById('hostStatus').textContent = 'Network error: ' + err.type;
   });
 }
 
 function joinOnlineRoom() {
+  initAudio(); // FIX: inside user gesture
   if (typeof Peer === 'undefined') {
     document.getElementById('joinStatus').textContent = 'PeerJS failed to load. Check internet/adblocker.';
     return;
   }
   const code = document.getElementById('joinCodeInput').value.trim();
-  if (code.length < 4) {
+  if (!/^\d{4}$/.test(code)) {
     document.getElementById('joinStatus').textContent = 'Enter 4-digit room code.';
     return;
   }
   cleanupPeer();
   document.getElementById('joinStatus').textContent = 'Connecting to room ' + code + '...';
-  peer = new Peer();
-  peer.on('open', () => {
-    conn = peer.connect('nh44-rush-' + code);
-    conn.on('open', () => {
+  const myPeer = new Peer();
+  peer = myPeer;
+  myPeer.on('open', () => {
+    if (peer !== myPeer) return;
+    const c = myPeer.connect('nh44-rush-' + code);
+    conn = c;
+    c.on('open', () => {
+      if (conn !== c) return;
       document.getElementById('joinStatus').textContent = 'Connected! Race starting...';
-      conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
+      c.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
       setActiveMode('guest');
       startRaceSession();
     });
-    conn.on('data', (data) => {
+    c.on('data', (data) => {
+      if (!data) return;
       if (data.type === 'state') {
         state = data.state;
-        updateHudFromState();
-        if (state.gameOver && gameStarted) showGameOverModal();
-        else gameOverOverlay.style.display = 'none';
+        if (state.gameOver && gameStarted) {
+          bankGuestRun();
+          updateHudFromState();
+          showGameOverModal();
+        } else {
+          guestBanked = false;
+          updateHudFromState();
+          gameOverOverlay.style.display = 'none';
+        }
       }
       if (data.type === 'sfx') playTone(data.freq, data.wave, data.dur, data.vol);
       if (data.type === 'vfx') {
@@ -493,13 +556,31 @@ function joinOnlineRoom() {
         if (data.kind === 'sparks') spawnParticles(data.x, data.y, data.color, 14, 1.2, 3.5);
       }
     });
-    conn.on('close', () => {
-      quitToHome();
+    c.on('close', () => {
+      if (conn === c) quitToHome();
     });
   });
-  peer.on('error', () => {
+  myPeer.on('error', () => {
+    if (peer !== myPeer) return;
     document.getElementById('joinStatus').textContent = 'Room not found. Check code & retry.';
   });
+}
+
+// FIX: guest never banked coins / leaderboard / best score
+function bankGuestRun() {
+  if (guestBanked || !state || !state.players[1]) return;
+  guestBanked = true;
+  const g = state.players[1];
+  const bonus = Math.floor(state.distanceKm * 4);
+  totalCoins += g.runCoins + bonus;
+  saveEconomy();
+  state.earnedSummary = `+${g.runCoins + bonus} Coins Banked! (${g.runCoins} pickup + ${bonus} km)`;
+  recordLeaderboardScore(driverName, getCarSpec(equippedCarId).name, state.distanceKm, g.score);
+  if (g.score > bestScore) {
+    bestScore = g.score;
+    store.set('highwayRushBest', bestScore);
+    bestEl.textContent = bestScore;
+  }
 }
 
 function broadcastSfx(freq, wave, dur, vol) {
@@ -517,9 +598,20 @@ createRoomBtn.addEventListener('click', () => createOnlineRoom(0));
 joinRoomBtn.addEventListener('click', joinOnlineRoom);
 copyCodeBtn.addEventListener('click', () => {
   const code = document.getElementById('roomCodeDisplay').textContent;
-  navigator.clipboard.writeText(code);
-  copyCodeBtn.textContent = 'COPIED!';
-  setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+  // FIX: clipboard API can reject (insecure context / permissions)
+  const done = () => {
+    copyCodeBtn.textContent = 'COPIED!';
+    setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(done).catch(() => {
+      copyCodeBtn.textContent = 'COPY FAILED';
+      setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+    });
+  } else {
+    copyCodeBtn.textContent = 'COPY FAILED';
+    setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+  }
 });
 
 // --- NAVIGATION, PAUSE & QUIT HANDLERS ---
@@ -533,22 +625,27 @@ function hideAllOverlays() {
 }
 
 function syncTopNavState() {
-  btnPause.style.display = gameStarted && !state.gameOver ? 'inline-block' : 'none';
+  btnPause.style.display = gameStarted && !state.gameOver && !isOnline() ? 'inline-block' : 'none';
   btnPause.textContent = paused ? '▶ RESUME' : '⏸ PAUSE';
 }
 
 function startRaceSession() {
   initAudio();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   hideAllOverlays();
   paused = false;
   gameStarted = true;
+  guestBanked = false;
+  guestInput = NO_INPUT();
   resetGame();
   syncTopNavState();
 }
 
 function togglePause() {
   if (!gameStarted || state.gameOver) return;
+  // FIX: pausing in online play froze the host for both players / left stale guest input
+  if (isOnline()) return;
+  // FIX: P/Esc resumed the game underneath an open garage/ranks/online overlay
+  if ([startOverlay, gameOverOverlay, garageOverlay, ranksOverlay, onlineOverlay].some(isShown)) return;
   paused = !paused;
   if (paused) {
     if (engineGain) engineGain.gain.value = 0;
@@ -558,6 +655,11 @@ function togglePause() {
   }
   syncTopNavState();
 }
+
+// FIX: auto-pause when the tab is hidden (offline modes only)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && gameStarted && !paused && !state.gameOver && !isOnline()) togglePause();
+});
 
 function quitToHome() {
   cleanupPeer();
@@ -590,9 +692,10 @@ function showGameOverModal() {
     goP2.style.display = 'none';
   }
   document.getElementById('goCoinsText').textContent = mode === 'guest'
-    ? `Guest Run Complete! (${state.players[1] ? state.players[1].runCoins : 0} coins collected)`
+    ? (state.earnedSummary || 'Guest Run Complete!')
     : (state.earnedSummary || '');
-  goRestartBtn.textContent = '↻ RACE AGAIN';
+  // FIX: guests receive state ~60x/sec; this reset "WAITING FOR HOST..." every packet
+  if (gameOverOverlay.style.display !== 'flex') goRestartBtn.textContent = '↻ RACE AGAIN';
   gameOverOverlay.style.display = 'flex';
 }
 
@@ -627,9 +730,15 @@ btn2P.addEventListener('click', () => {
   startOverlay.style.display = 'flex';
   syncTopNavState();
 });
+
+// FIX: menus that pause the race are not allowed mid online-race (it can't be paused)
+const onlineRaceActive = () => isOnline() && gameStarted && !state.gameOver;
+
 btnOnline.addEventListener('click', () => {
-  if (gameStarted && !state.gameOver && mode !== 'host' && mode !== 'guest') {
+  if (onlineRaceActive()) return;
+  if (gameStarted && !state.gameOver) {
     paused = true;
+    if (engineGain) engineGain.gain.value = 0;
   }
   hideAllOverlays();
   resetOnlineLobbyUI();
@@ -641,6 +750,7 @@ openOnlineBtn.addEventListener('click', () => { hideAllOverlays(); resetOnlineLo
 let returnToPausedRace = false;
 
 function openGarage() {
+  if (onlineRaceActive()) return;
   returnToPausedRace = gameStarted && !state.gameOver;
   if (returnToPausedRace) paused = true;
   if (engineGain) engineGain.gain.value = 0;
@@ -653,9 +763,6 @@ btnGarage.addEventListener('click', openGarage);
 openGarageBtn.addEventListener('click', openGarage);
 closeGarageBtn.addEventListener('click', () => {
   hideAllOverlays();
-  if (mode === 'guest' && conn && conn.open) {
-    conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
-  }
   if (returnToPausedRace) {
     returnToPausedRace = false;
     pauseOverlay.style.display = 'flex';
@@ -666,6 +773,7 @@ closeGarageBtn.addEventListener('click', () => {
 });
 
 function openRanks() {
+  if (onlineRaceActive()) return;
   returnToPausedRace = gameStarted && !state.gameOver;
   if (returnToPausedRace) paused = true;
   if (engineGain) engineGain.gain.value = 0;
@@ -689,6 +797,8 @@ closeRanksBtn.addEventListener('click', () => {
 
 closeOnlineBtn.addEventListener('click', () => {
   onlineOverlay.style.display = 'none';
+  // FIX: closing the lobby left the room open, so a friend joining later hijacked the menu/1P game
+  if (!isOnline()) cleanupPeer();
   if (gameStarted && !state.gameOver) {
     pauseOverlay.style.display = 'flex';
     syncTopNavState();
@@ -700,7 +810,7 @@ closeOnlineBtn.addEventListener('click', () => {
 btnSound.addEventListener('click', () => {
   muted = !muted;
   btnSound.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
-  if (engineGain) engineGain.gain.value = muted ? 0 : 0.02;
+  if (engineGain) engineGain.gain.value = muted ? 0 : (gameStarted && !paused ? 0.02 : 0);
 });
 
 btnPause.addEventListener('click', togglePause);
@@ -724,8 +834,11 @@ document.querySelectorAll('#p1Colors .swatch').forEach((el) => {
     renderCarPreviewCard();
     if (mode === 'guest' && conn && conn.open) {
       conn.send({ type: 'guestProfile', color: selectedColor, carId: equippedCarId });
-    } else {
+    } else if (!(gameStarted && !state.gameOver && !paused)) {
       resetGame();
+    } else {
+      // colour change mid-race: just recolour, don't wipe the run
+      state.players[0].color = selectedColor;
     }
   });
 });
@@ -753,6 +866,7 @@ startBtn.addEventListener('click', startRaceSession);
 // --- KEYBOARD & TOUCH INPUTS ---
 const keys = {};
 const touchState = { left: false, right: false, up: false, down: false };
+const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyP', 'Escape']);
 
 function clearAllInputs() {
   Object.keys(keys).forEach((k) => (keys[k] = false));
@@ -776,8 +890,9 @@ function triggerRestart() {
 
 function bindTouch(id, prop) {
   const el = document.getElementById(id);
-  el.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); touchState[prop] = true; });
-  el.addEventListener('touchend', (e) => { e.preventDefault(); touchState[prop] = false; });
+  if (!el) return;
+  el.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); touchState[prop] = true; }, { passive: false });
+  el.addEventListener('touchend', (e) => { e.preventDefault(); touchState[prop] = false; }, { passive: false });
   el.addEventListener('touchcancel', () => { touchState[prop] = false; });
   el.addEventListener('mousedown', () => { initAudio(); touchState[prop] = true; });
   el.addEventListener('mouseup', () => { touchState[prop] = false; });
@@ -789,17 +904,20 @@ bindTouch('tNitro', 'up');
 bindTouch('tBrake', 'down');
 
 window.addEventListener('keydown', (e) => {
-  if (document.activeElement.tagName !== 'INPUT') {
+  // FIX: typing in the name box must not steer the car / trigger shortcuts
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  // FIX: arrow keys scrolled the page
+  if (GAME_KEYS.has(e.code)) e.preventDefault();
+
+  if (!e.repeat) {   // FIX: holding P/Esc/Space used to flicker pause / restart
     if (e.code === 'KeyP' || e.code === 'Escape') {
-      e.preventDefault();
       togglePause();
       return;
     }
     if (e.code === 'Space') {
-      e.preventDefault();
       if (state.gameOver && gameStarted) {
         triggerRestart();
-      } else if (!gameStarted && startOverlay.style.display !== 'none') {
+      } else if (!gameStarted && isShown(startOverlay)) {
         startRaceSession();
       }
     }
@@ -839,6 +957,7 @@ function resetGame() {
   skidMarks = [];
   speedLines = [];
   shakeTime = 0;
+  guestBanked = false;
 
   const cfg = DIFF_CONFIG[difficulty];
   const p1Spec = getCarSpec(equippedCarId);
@@ -1051,6 +1170,26 @@ function updatePoliceChase() {
   }
 }
 
+// FIX: lane-centre-only spawning left a permanently safe strip on the lane lines
+// (lanes are 78px wide, cars ~36px -> 39px clearance vs ~31px needed to crash).
+// Now some traffic spawns aimed at the player's actual position (even between lanes),
+// and a gap check guarantees the road is never fully blocked.
+const MIN_PASS_GAP = 66; // player width (38 max) + clearance
+
+function hasPassableGap(extra) {
+  const left = ROAD_LEFT + 4, right = ROAD_LEFT + ROAD_WIDTH - 4;
+  const blockers = state.traffic.filter((v) => v.y < 230).map((v) => [v.x, v.x + v.w]);
+  if (extra) blockers.push([extra.x, extra.x + extra.w]);
+  blockers.sort((a, b) => a[0] - b[0]);
+  let cursor = left, best = 0;
+  for (const [a, b] of blockers) {
+    best = Math.max(best, a - cursor);
+    cursor = Math.max(cursor, b);
+  }
+  best = Math.max(best, right - cursor);
+  return best >= MIN_PASS_GAP;
+}
+
 function spawnTraffic() {
   const activeTopLanes = new Set();
   state.traffic.forEach((v) => {
@@ -1061,12 +1200,6 @@ function spawnTraffic() {
   });
   if (activeTopLanes.size >= LANES - 1) return;
 
-  const availableLanes = [];
-  for (let l = 0; l < LANES; l++) {
-    if (!activeTopLanes.has(l)) availableLanes.push(l);
-  }
-  const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
-
   const roll = Math.random();
   let type = 'car', w = 36, h = 64, speed = 2.6 + Math.random() * 1.6;
   const carColors = ['#ff7b72', '#d2a8ff', '#79c0ff', '#e6edf3'];
@@ -1075,7 +1208,25 @@ function spawnTraffic() {
   if (roll < 0.25) { type = 'auto'; w = 30; h = 48; speed = 2.2; color = '#f1c40f'; }
   else if (roll > 0.78) { type = 'truck'; w = 42; h = 92; speed = 2.0; color = '#d97706'; }
 
-  const x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - w) / 2;
+  let x;
+  const alive = gameStarted ? state.players.filter((p) => p.alive) : [];
+  if (alive.length && Math.random() < 0.5) {
+    // aimed spawn: lands on the player's current column, so lane lines are no longer a safe zone
+    const target = alive[Math.floor(Math.random() * alive.length)];
+    const cx = target.x + target.w / 2 + (Math.random() - 0.5) * 30;
+    x = Math.max(ROAD_LEFT + 4, Math.min(ROAD_LEFT + ROAD_WIDTH - w - 4, cx - w / 2));
+  } else {
+    const availableLanes = [];
+    for (let l = 0; l < LANES; l++) {
+      if (!activeTopLanes.has(l)) availableLanes.push(l);
+    }
+    const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+    x = ROAD_LEFT + lane * LANE_WIDTH + (LANE_WIDTH - w) / 2;
+  }
+
+  // never spawn a car that would leave no gap wide enough to drive through
+  if (!hasPassableGap({ x, w })) return;
+
   state.traffic.push({ x, y: -110, w, h, speed, color, type, nearMissedBy: {} });
 }
 
@@ -1276,7 +1427,7 @@ function drawVehicle(v, isPlayer = false, tagOverride = null) {
   }
 }
 
-function checkCollision(a, b, pad = 5) {
+function checkCollision(a, b, pad = 4) {
   return a.x + pad < b.x + b.w - pad && a.x + a.w - pad > b.x + pad &&
          a.y + pad < b.y + b.h - pad && a.y + a.h - pad > b.y + pad;
 }
@@ -1286,8 +1437,12 @@ function updateHudFromState() {
   const p2 = state.players[1];
   p1ScoreEl.textContent = p1.score;
   p1NitroEl.textContent = `${Math.round(p1.nitro)}%`;
-  coinsHudEl.textContent = Math.floor(totalCoins + p1.runCoins);
-  homeCoinsPill.textContent = `₹ ${Math.floor(totalCoins + p1.runCoins)}`;
+  // FIX: guest HUD showed host's run coins; and after game over coins were counted twice
+  // (already banked into totalCoins) for one frame.
+  const me = mode === 'guest' && p2 ? p2 : p1;
+  const coins = state.gameOver ? totalCoins : totalCoins + me.runCoins;
+  coinsHudEl.textContent = Math.floor(coins);
+  homeCoinsPill.textContent = `₹ ${Math.floor(coins)}`;
   if (p2) {
     p2ScoreEl.textContent = p2.score;
     p2NitroEl.textContent = `${Math.round(p2.nitro)}%`;
@@ -1415,14 +1570,15 @@ function update() {
   const p2Up = mode === 'host' ? guestInput.up : keys['ArrowUp'];
   const p2Down = mode === 'host' ? guestInput.down : keys['ArrowDown'];
 
-  const p1Boost = p1.alive && p1Up && p1.nitro > 1;
-  const p2Boost = p2 && p2.alive && p2Up && p2.nitro > 1;
+  // FIX: nitro flickered on/off at ~0% (regen immediately re-enabled it). Need >10% to re-engage.
+  const p1Boost = p1.alive && p1Up && p1.nitro > (p1.boosting ? 1 : 10);
+  const p2Boost = p2 && p2.alive && p2Up && p2.nitro > (p2.boosting ? 1 : 10);
 
-  p1.boosting = p1Boost;
-  p1.braking = p1.alive && p1Down;
+  p1.boosting = !!p1Boost;
+  p1.braking = p1.alive && !!p1Down;
   if (p2) {
-    p2.boosting = p2Boost;
-    p2.braking = p2.alive && p2Down;
+    p2.boosting = !!p2Boost;
+    p2.braking = p2.alive && !!p2Down;
   }
 
   p1.nitro = p1Boost ? Math.max(0, p1.nitro - p1.nitroDrain) : Math.min(100, p1.nitro + p1.nitroRegen);
@@ -1430,7 +1586,7 @@ function update() {
 
   const maxScore = Math.max(p1.score, p2 ? p2.score : 0);
   let currentSpeed = state.baseSpeed + Math.min(maxScore / 950, 6.5);
-  state.boostingAny = p1Boost || p2Boost;
+  state.boostingAny = !!(p1Boost || p2Boost);
   if (state.boostingAny) currentSpeed *= 1.45;
   if (p1.braking || (p2 && p2.braking)) currentSpeed *= 0.65;
   state.currentSpeed = currentSpeed;
@@ -1472,8 +1628,11 @@ function update() {
     state.nextTollKm += 5;
     broadcastSfx(520, 'sine', 0.15, 0.06);
   }
-  if (state.tollBannerY > -100 && state.tollBannerY < canvas.height + 80) {
+  // FIX: banner was never reset after its first pass, so `tollBannerY < -80` was permanently
+  // false and the police pursuit (which requires that) NEVER spawned again after km 5.
+  if (state.tollBannerY > -100) {
     state.tollBannerY += currentSpeed;
+    if (state.tollBannerY > canvas.height + 80) state.tollBannerY = -120;
   }
 
   if (mode === '1p' && !state.rival && state.distanceKm >= state.nextRivalKm) {
@@ -1503,7 +1662,7 @@ function update() {
     c.y += currentSpeed * 0.9;
     let collected = false;
     state.players.forEach((p) => {
-      if (!p.alive) return;
+      if (!p.alive || collected) return; // FIX: two players could both collect the same coin
       if (Math.hypot(p.x + p.w / 2 - c.x, p.y + p.h / 2 - c.y) < 36) {
         collected = true;
         p.runCoins += 10;
@@ -1521,7 +1680,7 @@ function update() {
     orb.y += currentSpeed * 0.85;
     let collected = false;
     state.players.forEach((p) => {
-      if (!p.alive) return;
+      if (!p.alive || collected) return; // FIX: same double-collect issue
       if (Math.hypot(p.x + p.w / 2 - orb.x, p.y + p.h / 2 - orb.y) < 40) {
         p.shield = true; collected = true;
         broadcastSfx(660, 'sine', 0.22, 0.1);
@@ -1532,12 +1691,15 @@ function update() {
     if (collected || orb.y > canvas.height + 50) state.pickups.splice(i, 1);
   }
 
+  // FIX: previously `traffic.splice(i,1)` ran inside the players.forEach; when a shield absorbed a
+  // hit the *next* player kept using the removed vehicle (and could splice a different vehicle).
   for (let i = state.traffic.length - 1; i >= 0; i--) {
     const v = state.traffic[i];
     v.y += currentSpeed - v.speed * 0.45;
+    let removed = false;
 
-    state.players.forEach((p) => {
-      if (!p.alive) return;
+    for (const p of state.players) {
+      if (!p.alive) continue;
       if (!v.nearMissedBy[p.label] && v.y > p.y && v.y < p.y + 42) {
         const gap = Math.abs(p.x + p.w / 2 - (v.x + v.w / 2));
         if (gap >= 34 && gap <= 68) {
@@ -1552,11 +1714,12 @@ function update() {
       if (checkCollision(p, v)) {
         if (p.shield) {
           p.shield = false;
-          state.traffic.splice(i, 1);
+          removed = true;
           broadcastSfx(180, 'sawtooth', 0.25, 0.12);
           broadcastVfx('shake');
           broadcastVfx('sparks', p.x + p.w / 2, p.y, '#58a6ff');
           addPopup(p.x, p.y - 20, 'SHIELD SAVED!', '#58a6ff');
+          break;
         } else {
           p.alive = false;
           broadcastSfx(90, 'sawtooth', 0.45, 0.16);
@@ -1564,8 +1727,8 @@ function update() {
           broadcastVfx('sparks', p.x + p.w / 2, p.y + p.h / 2, '#ff7b72');
         }
       }
-    });
-    if (v.y > canvas.height + 120) state.traffic.splice(i, 1);
+    }
+    if (removed || v.y > canvas.height + 120) state.traffic.splice(i, 1);
   }
 
   const alivePlayers = state.players.filter((p) => p.alive);
@@ -1580,12 +1743,20 @@ function update() {
     saveEconomy();
     state.earnedSummary = `+${totalEarned} Coins Banked! (${p1.runCoins} pickup + ${distanceBonus} km)`;
 
-    const topRun = Math.max(p1.score, p2 ? p2.score : 0);
-    recordLeaderboardScore(driverName, getCarSpec(equippedCarId).name, state.distanceKm, topRun);
+    // FIX: leaderboard always credited the host's name/car even when P2/guest had the top score
+    const topIdx = p2 && p2.score > p1.score ? 1 : 0;
+    const top = state.players[topIdx];
+    let lbName = driverName;
+    let lbCar = getCarSpec(equippedCarId).name;
+    if (topIdx === 1) {
+      lbName = mode === 'host' ? 'Guest' : 'Player 2';
+      lbCar = getCarSpec(mode === 'host' ? p2CarId : 'swift').name;
+    }
+    recordLeaderboardScore(lbName, lbCar, state.distanceKm, top.score);
 
-    if (topRun > bestScore) {
-      bestScore = topRun;
-      localStorage.setItem('highwayRushBest', bestScore);
+    if (top.score > bestScore) {
+      bestScore = top.score;
+      store.set('highwayRushBest', bestScore);
       bestEl.textContent = bestScore;
     }
     showGameOverModal();
@@ -1773,8 +1944,20 @@ function render() {
   ctx.restore();
 }
 
-function loop() {
-  update();
+// FIX: game logic was tied to requestAnimationFrame, so on 120/144 Hz monitors the whole game
+// ran 2x-2.4x too fast. Now logic runs at a fixed 60 updates/sec regardless of refresh rate.
+const STEP_MS = 1000 / 60;
+let lastTime = 0;
+let accumulator = 0;
+
+function loop(now) {
+  if (!lastTime) lastTime = now;
+  accumulator += Math.min(100, now - lastTime); // clamp so tab-switching doesn't cause a burst
+  lastTime = now;
+  while (accumulator >= STEP_MS) {
+    update();
+    accumulator -= STEP_MS;
+  }
   render();
   requestAnimationFrame(loop);
 }
@@ -1783,4 +1966,4 @@ initPropsAndRain();
 resetGame();
 renderCarPreviewCard();
 syncTopNavState();
-loop();
+requestAnimationFrame(loop);
