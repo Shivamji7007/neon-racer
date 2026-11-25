@@ -71,18 +71,19 @@ const envLabelEl = document.getElementById('envLabel');
 const activeCarNameEl = document.getElementById('activeCarName');
 const driverNameInput = document.getElementById('driverNameInput');
 
-// Dynamic 5-lane desktop / 4-lane mobile highway geometry
-const ROAD_LEFT = 54;
-let LANES = 5;
-let ROAD_WIDTH = 390;
-let LANE_WIDTH = ROAD_WIDTH / LANES;
+// Dynamic 7-lane widescreen desktop / 4-lane mobile highway geometry
+let ROAD_LEFT = 141;
+let LANES = 7;
+let ROAD_WIDTH = 546;
+let LANE_WIDTH = 78;
 
 function applyRoadLayout(forcedLanes = null) {
   const isMobilePortrait = document.documentElement.getAttribute('data-input') === 'touch' && window.innerHeight >= window.innerWidth;
-  LANES = forcedLanes || (isMobilePortrait ? 4 : 5);
-  ROAD_WIDTH = LANES * 78;
+  LANES = forcedLanes || (isMobilePortrait ? 4 : 7);
   LANE_WIDTH = 78;
-  canvas.width = ROAD_LEFT * 2 + ROAD_WIDTH; // 498px (5 lanes) or 420px (4 lanes)
+  ROAD_WIDTH = LANES * LANE_WIDTH;
+  ROAD_LEFT = LANES >= 7 ? 141 : 54; // 828px (7 lanes) on laptop, 420px (4 lanes) on mobile
+  canvas.width = ROAD_LEFT * 2 + ROAD_WIDTH;
   const aspectVal = (canvas.width / canvas.height).toFixed(4);
   document.documentElement.style.setProperty('--aspect', aspectVal);
 }
@@ -369,7 +370,7 @@ let shakeIntensity = 0;
 
 function initPropsAndRain() {
   rainDrops = [];
-  for (let i = 0; i < 48; i++) {
+  for (let i = 0; i < 65; i++) {
     rainDrops.push({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -378,9 +379,13 @@ function initPropsAndRain() {
     });
   }
   roadProps = [];
-  for (let y = 0; y < canvas.height + 120; y += 110) {
-    roadProps.push({ y, side: 'left', kind: Math.random() < 0.6 ? 'tree' : 'lamp' });
-    roadProps.push({ y: y + 55, side: 'right', kind: Math.random() < 0.6 ? 'tree' : 'lamp' });
+  for (let y = 0; y < canvas.height + 120; y += 105) {
+    roadProps.push({ y, side: 'left', kind: Math.random() < 0.65 ? 'tree' : 'lamp', outer: false });
+    roadProps.push({ y: y + 52, side: 'right', kind: Math.random() < 0.65 ? 'tree' : 'lamp', outer: false });
+    if (LANES >= 7) {
+      roadProps.push({ y: y + 26, side: 'left', kind: 'tree', outer: true });
+      roadProps.push({ y: y + 78, side: 'right', kind: 'tree', outer: true });
+    }
   }
 }
 
@@ -571,6 +576,7 @@ function joinOnlineRoom() {
         state = data.state;
         if (state.lanes && state.lanes !== LANES) {
           applyRoadLayout(state.lanes);
+          initPropsAndRain();
         }
         if (state.gameOver && gameStarted) {
           bankGuestRun();
@@ -1108,7 +1114,7 @@ function updateAttractDemo() {
   });
 
   state.spawnTimer++;
-  if (state.spawnTimer >= 42) {
+  if (state.spawnTimer >= (LANES >= 7 ? 32 : 46)) {
     spawnTraffic();
     state.spawnTimer = 0;
   }
@@ -1292,7 +1298,7 @@ function spawnTraffic() {
 
   let x;
   const alive = gameStarted ? state.players.filter((p) => p.alive) : [];
-  if (alive.length && Math.random() < 0.5) {
+  if (alive.length && Math.random() < 0.45) {
     const target = alive[Math.floor(Math.random() * alive.length)];
     const cx = target.x + target.w / 2 + (Math.random() - 0.5) * 30;
     x = Math.max(ROAD_LEFT + 4, Math.min(ROAD_LEFT + ROAD_WIDTH - w - 4, cx - w / 2));
@@ -1536,7 +1542,7 @@ function updateLocalVfx() {
       prop.y += spd;
       if (prop.y > canvas.height + 50) {
         prop.y = -50;
-        prop.kind = Math.random() < 0.6 ? 'tree' : 'lamp';
+        prop.kind = prop.outer ? 'tree' : (Math.random() < 0.65 ? 'tree' : 'lamp');
       }
     });
   }
@@ -1574,7 +1580,7 @@ function updateLocalVfx() {
     if (state.boostingAny && Math.random() < 0.7) {
       const leftSide = Math.random() < 0.5;
       speedLines.push({
-        x: leftSide ? 6 + Math.random() * 38 : canvas.width - 44 + Math.random() * 38,
+        x: leftSide ? 6 + Math.random() * (ROAD_LEFT - 14) : ROAD_LEFT + ROAD_WIDTH + 8 + Math.random() * (ROAD_LEFT - 14),
         y: -40,
         len: 35 + Math.random() * 45,
         speed: spd * 2.2,
@@ -1727,8 +1733,9 @@ function update() {
   updatePoliceChase();
 
   state.spawnTimer++;
-  const baseSpawn = LANES === 5 ? Math.round(cfg.spawnStart * 0.85) : cfg.spawnStart;
-  const minSpawn = LANES === 5 ? Math.round(cfg.spawnMin * 0.85) : cfg.spawnMin;
+  const densityScale = LANES >= 7 ? 0.68 : 1.0;
+  const baseSpawn = Math.round(cfg.spawnStart * densityScale);
+  const minSpawn = Math.round(cfg.spawnMin * densityScale);
   const spawnInterval = Math.max(minSpawn, baseSpawn - Math.floor(maxScore / 600));
   if (state.spawnTimer >= spawnInterval) { spawnTraffic(); state.spawnTimer = 0; }
 
@@ -1883,15 +1890,16 @@ function render() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   roadProps.forEach((prop) => {
-    const px = prop.side === 'left' ? 22 : canvas.width - 22;
+    const offset = prop.outer ? 88 : 30;
+    const px = prop.side === 'left' ? ROAD_LEFT - offset : ROAD_LEFT + ROAD_WIDTH + offset;
     if (prop.kind === 'tree') {
       ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#072417' : '#15803d';
       ctx.beginPath();
-      ctx.arc(px, prop.y, 14, 0, Math.PI * 2);
+      ctx.arc(px, prop.y, prop.outer ? 18 : 14, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = state.timeOfDay === 'NIGHT' ? '#0b3824' : '#22c55e';
       ctx.beginPath();
-      ctx.arc(px - 3, prop.y - 3, 9, 0, Math.PI * 2);
+      ctx.arc(px - 3, prop.y - 3, prop.outer ? 12 : 9, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.fillStyle = '#6e7681';
@@ -1910,17 +1918,18 @@ function render() {
   });
 
   const milestoneY = ((state.distanceKm * 180) % (canvas.height + 120)) - 60;
+  const signX = Math.max(5, ROAD_LEFT - 50);
   ctx.fillStyle = '#15803d';
-  ctx.fillRect(5, milestoneY, 42, 44);
+  ctx.fillRect(signX, milestoneY, 42, 44);
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(6, milestoneY + 1, 40, 42);
+  ctx.strokeRect(signX + 1, milestoneY + 1, 40, 42);
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 9px Segoe UI';
   ctx.textAlign = 'center';
-  ctx.fillText('NH-44', 26, milestoneY + 13);
-  ctx.fillText('DELHI', 26, milestoneY + 25);
-  ctx.fillText(`${Math.floor(state.distanceKm)} KM`, 26, milestoneY + 37);
+  ctx.fillText('NH-44', signX + 21, milestoneY + 13);
+  ctx.fillText('DELHI', signX + 21, milestoneY + 25);
+  ctx.fillText(`${Math.floor(state.distanceKm)} KM`, signX + 21, milestoneY + 37);
 
   ctx.fillStyle = roadColor;
   ctx.fillRect(ROAD_LEFT, 0, ROAD_WIDTH, canvas.height);
