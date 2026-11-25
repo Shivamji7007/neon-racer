@@ -71,18 +71,26 @@ const envLabelEl = document.getElementById('envLabel');
 const activeCarNameEl = document.getElementById('activeCarName');
 const driverNameInput = document.getElementById('driverNameInput');
 
-// Dynamic 7-lane widescreen desktop / 4-lane mobile highway geometry
 let ROAD_LEFT = 141;
 let LANES = 7;
 let ROAD_WIDTH = 546;
 let LANE_WIDTH = 78;
 
+const isShown = (el) => getComputedStyle(el).display !== 'none';
+let mode = '1p';
+const isOnline = () => mode === 'host' || mode === 'guest';
+const onlineRaceActive = () => isOnline() && gameStarted && !state.gameOver;
+
 function applyRoadLayout(forcedLanes = null) {
-  const isMobilePortrait = document.documentElement.getAttribute('data-input') === 'touch' && window.innerHeight >= window.innerWidth;
-  LANES = forcedLanes || (isMobilePortrait ? 4 : 7);
+  if (isOnline()) {
+    LANES = forcedLanes || 5;
+  } else {
+    const isMobilePortrait = document.documentElement.getAttribute('data-input') === 'touch' && window.innerHeight >= window.innerWidth;
+    LANES = forcedLanes || (isMobilePortrait ? 4 : 7);
+  }
   LANE_WIDTH = 78;
   ROAD_WIDTH = LANES * LANE_WIDTH;
-  ROAD_LEFT = LANES >= 7 ? 141 : 54; // 828px (7 lanes) on laptop, 420px (4 lanes) on mobile
+  ROAD_LEFT = LANES >= 7 ? 141 : 54;
   canvas.width = ROAD_LEFT * 2 + ROAD_WIDTH;
   const aspectVal = (canvas.width / canvas.height).toFixed(4);
   document.documentElement.style.setProperty('--aspect', aspectVal);
@@ -92,10 +100,6 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('button');
   if (b) b.blur();
 });
-
-const isShown = (el) => getComputedStyle(el).display !== 'none';
-const isOnline = () => mode === 'host' || mode === 'guest';
-const onlineRaceActive = () => isOnline() && gameStarted && !state.gameOver;
 
 function closeDotsMenu() {
   dotsMenu.style.display = 'none';
@@ -339,8 +343,6 @@ function renderGarage() {
     grid.appendChild(card);
   });
 }
-
-let mode = '1p';
 let muted = false;
 let gameStarted = false;
 let paused = false;
@@ -481,6 +483,7 @@ function resetOnlineLobbyUI() {
   document.getElementById('hostStatus').textContent = 'Waiting for friend to join...';
   document.getElementById('joinStatus').textContent = '';
 }
+
 function createOnlineRoom(retryCount = 0) {
   cleanupPeer();
   initAudio();
@@ -650,7 +653,6 @@ copyCodeBtn.addEventListener('click', () => {
   }
 });
 
-// --- NAVIGATION, PAUSE & 3-DOT MENU HANDLERS ---
 function hideAllOverlays() {
   startOverlay.style.display = 'none';
   pauseOverlay.style.display = 'none';
@@ -727,7 +729,6 @@ function quitToHome() {
   startOverlay.style.display = 'flex';
   syncTopNavState();
 }
-
 function showGameOverModal() {
   closeDotsMenu();
   syncTopNavState();
@@ -1089,9 +1090,7 @@ function resetGame() {
     earnedSummary: '',
   };
   updateHudFromState();
-}
-
-// --- LIVE ANIMATED BACKGROUND DEMO ON HOME SCREEN ---
+}// --- LIVE ANIMATED BACKGROUND DEMO ON HOME SCREEN ---
 function updateAttractDemo() {
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].life--;
