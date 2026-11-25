@@ -343,6 +343,7 @@ function renderGarage() {
     grid.appendChild(card);
   });
 }
+
 let muted = false;
 let gameStarted = false;
 let paused = false;
@@ -468,6 +469,14 @@ let conn = null;
 const NO_INPUT = () => ({ left: false, right: false, up: false, down: false });
 let guestInput = NO_INPUT();
 
+function buildInviteUrl(code) {
+  const cleanCode = (code || '').trim();
+  if (!/^\d{4}$/.test(cleanCode)) return window.location.href;
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', cleanCode);
+  return url.toString();
+}
+
 function cleanupPeer() {
   const c = conn, p = peer;
   conn = null;
@@ -547,13 +556,15 @@ function createOnlineRoom(retryCount = 0) {
   });
 }
 
-function joinOnlineRoom() {
+function joinOnlineRoom(forcedCode = null) {
   initAudio();
   if (typeof Peer === 'undefined') {
     document.getElementById('joinStatus').textContent = 'PeerJS failed to load. Check internet/adblocker.';
     return;
   }
-  const code = document.getElementById('joinCodeInput').value.trim();
+  const joinInputEl = document.getElementById('joinCodeInput');
+  const code = (forcedCode !== null ? String(forcedCode) : joinInputEl.value).trim();
+  if (forcedCode !== null) joinInputEl.value = code;
   if (!/^\d{4}$/.test(code)) {
     document.getElementById('joinStatus').textContent = 'Enter 4-digit room code.';
     return;
@@ -635,15 +646,16 @@ function broadcastVfx(kind, x = 0, y = 0, color = '#ffa657') {
 }
 
 createRoomBtn.addEventListener('click', () => createOnlineRoom(0));
-joinRoomBtn.addEventListener('click', joinOnlineRoom);
+joinRoomBtn.addEventListener('click', () => joinOnlineRoom());
 copyCodeBtn.addEventListener('click', () => {
-  const code = document.getElementById('roomCodeDisplay').textContent;
+  const code = document.getElementById('roomCodeDisplay').textContent.trim();
+  const inviteUrl = buildInviteUrl(code);
   const done = () => {
-    copyCodeBtn.textContent = 'COPIED!';
+    copyCodeBtn.textContent = 'LINK COPIED!';
     setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(code).then(done).catch(() => {
+    navigator.clipboard.writeText(inviteUrl).then(done).catch(() => {
       copyCodeBtn.textContent = 'COPY FAILED';
       setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
     });
@@ -729,6 +741,7 @@ function quitToHome() {
   startOverlay.style.display = 'flex';
   syncTopNavState();
 }
+
 function showGameOverModal() {
   closeDotsMenu();
   syncTopNavState();
@@ -915,7 +928,6 @@ document.querySelectorAll('#weatherRow button').forEach((btn) => {
 
 startBtn.addEventListener('click', startRaceSession);
 
-// --- KEYBOARD & MULTI-TOUCH SLIDE INPUTS ---
 const keys = {};
 const touchState = { left: false, right: false, up: false, down: false };
 const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyP', 'Escape']);
@@ -1090,7 +1102,8 @@ function resetGame() {
     earnedSummary: '',
   };
   updateHudFromState();
-}// --- LIVE ANIMATED BACKGROUND DEMO ON HOME SCREEN ---
+}
+
 function updateAttractDemo() {
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].life--;
@@ -1150,7 +1163,6 @@ function updateAttractDemo() {
   }
 }
 
-// --- PHASE 4: RIVAL AI RACER & POLICE INTERCEPTOR ---
 function spawnRivalAI() {
   const openLanes = [];
   for (let l = 0; l < LANES; l++) {
@@ -2060,3 +2072,20 @@ resetGame();
 renderCarPreviewCard();
 syncTopNavState();
 requestAnimationFrame(loop);
+
+(function autoJoinFromInviteLink() {
+  const params = new URLSearchParams(window.location.search);
+  const inviteCode = (params.get('room') || '').trim();
+  if (!/^\d{4}$/.test(inviteCode)) return;
+  hideAllOverlays();
+  resetOnlineLobbyUI();
+  onlineOverlay.style.display = 'flex';
+  const tryJoin = () => {
+    if (typeof Peer !== 'undefined') {
+      joinOnlineRoom(inviteCode);
+    } else {
+      setTimeout(tryJoin, 250);
+    }
+  };
+  tryJoin();
+})();
