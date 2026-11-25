@@ -222,35 +222,48 @@ function renderCarPreviewCard() {
   document.getElementById('prevHndBar').style.width = `${spec.hndPct}%`;
   document.getElementById('prevNitBar').style.width = `${spec.nitPct}%`;
 
-  pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-  pCtx.fillStyle = '#161b22';
-  pCtx.fillRect(0, 0, 64, 84);
-  pCtx.strokeStyle = 'rgba(255,255,255,0.18)';
-  pCtx.setLineDash([8, 8]);
-  pCtx.beginPath(); pCtx.moveTo(32, 0); pCtx.lineTo(32, 84); pCtx.stroke();
-  pCtx.setLineDash([]);
-
-  const grad = pCtx.createLinearGradient(32, 22, 32, 0);
- pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+  const pw = previewCanvas.width;
+  const ph = previewCanvas.height;
+  pCtx.clearRect(0, 0, pw, ph);
   pCtx.fillStyle = '#090c10';
-  pCtx.fillRect(0, 0, 64, 60);
+  pCtx.fillRect(0, 0, pw, ph);
   pCtx.strokeStyle = 'rgba(255,255,255,0.18)';
   pCtx.setLineDash([6, 6]);
-  pCtx.beginPath(); pCtx.moveTo(32, 0); pCtx.lineTo(32, 60); pCtx.stroke();
+  pCtx.beginPath();
+  pCtx.moveTo(pw / 2, 0);
+  pCtx.lineTo(pw / 2, ph);
+  pCtx.stroke();
   pCtx.setLineDash([]);
 
-  const grad = pCtx.createLinearGradient(32, 12, 32, 0);
+  const grad = pCtx.createLinearGradient(pw / 2, 12, pw / 2, 0);
   grad.addColorStop(0, 'rgba(254, 240, 138, 0.38)');
   grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
   pCtx.fillStyle = grad;
   pCtx.beginPath();
-  pCtx.moveTo(20, 12); pCtx.lineTo(8, 0); pCtx.lineTo(56, 0); pCtx.lineTo(44, 12);
+  pCtx.moveTo(pw / 2 - 12, 12);
+  pCtx.lineTo(8, 0);
+  pCtx.lineTo(pw - 8, 0);
+  pCtx.lineTo(pw / 2 + 12, 12);
+  pCtx.closePath();
   pCtx.fill();
 
   const w = spec.bodyStyle === 'suv' ? 30 : 28;
   const h = 42;
-  const x = (64 - w) / 2;
-  const y = 11;
+  const x = (pw - w) / 2;
+  const y = (ph - h) / 2;
+
+  pCtx.fillStyle = selectedColor;
+  pCtx.beginPath();
+  pCtx.roundRect(x, y, w, h, spec.bodyStyle === 'suv' ? 5 : 8);
+  pCtx.fill();
+
+  pCtx.fillStyle = '#0d1117';
+  pCtx.fillRect(x + 4, y + 9, w - 8, 9);
+  pCtx.fillRect(x + 5, y + h - 13, w - 10, 6);
+
+  if (spec.bodyStyle === 'suv') {
+    pCtx.fillStyle = '#161b22';
+    pCtx.fillRect(x + 3, y + 18, w - 6, 9);
   } else if (spec.bodyStyle === 'hyper') {
     pCtx.fillStyle = '#facc15';
     pCtx.fillRect(x + w / 2 - 4, y + 3, 2.5, h - 6);
@@ -645,16 +658,16 @@ copyCodeBtn.addEventListener('click', () => {
   const inviteUrl = buildInviteUrl(code);
   const done = () => {
     copyCodeBtn.textContent = 'LINK COPIED!';
-    setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+    setTimeout(() => (copyCodeBtn.textContent = 'COPY INVITE LINK'), 1500);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(inviteUrl).then(done).catch(() => {
       copyCodeBtn.textContent = 'COPY FAILED';
-      setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+      setTimeout(() => (copyCodeBtn.textContent = 'COPY INVITE LINK'), 1500);
     });
   } else {
     copyCodeBtn.textContent = 'COPY FAILED';
-    setTimeout(() => (copyCodeBtn.textContent = 'COPY CODE'), 1500);
+    setTimeout(() => (copyCodeBtn.textContent = 'COPY INVITE LINK'), 1500);
   }
 });
 
@@ -695,6 +708,7 @@ function startRaceSession() {
   gameStarted = true;
   guestBanked = false;
   guestInput = NO_INPUT();
+  goRestartBtn.textContent = 'RACE AGAIN';
   resetGame();
   syncTopNavState();
 }
@@ -750,7 +764,7 @@ function showGameOverModal() {
   document.getElementById('goCoinsText').textContent = mode === 'guest'
     ? (state.earnedSummary || 'Guest Run Complete!')
     : (state.earnedSummary || '');
-  if (gameOverOverlay.style.display !== 'flex') goRestartBtn.textContent = '↻ RACE AGAIN';
+  if (gameOverOverlay.style.display !== 'flex') goRestartBtn.textContent = 'RACE AGAIN';
   gameOverOverlay.style.display = 'flex';
 }
 
@@ -959,6 +973,7 @@ function triggerRestart() {
     goRestartBtn.textContent = 'WAITING FOR HOST...';
     conn.send({ type: 'restart' });
   } else {
+    goRestartBtn.textContent = 'RACE AGAIN';
     gameOverOverlay.style.display = 'none';
     resetGame();
     syncTopNavState();
@@ -1046,6 +1061,7 @@ function resetGame() {
   if (mode !== 'guest') applyRoadLayout();
   clearAllInputs();
   gameOverOverlay.style.display = 'none';
+  goRestartBtn.textContent = 'RACE AGAIN';
   particles = [];
   skidMarks = [];
   speedLines = [];
