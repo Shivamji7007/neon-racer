@@ -64,6 +64,9 @@
       letter-spacing: 0.6px;
       cursor: pointer;
       touch-action: manipulation;
+      pointer-events: auto;
+      position: relative;
+      z-index: 2;
       transition: transform 0.08s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
     html[data-input="mouse"] button:hover {
@@ -81,7 +84,7 @@
     button.danger-btn:hover { background: #b62324; }
 
     /* TOP HUD BAR */
-    #hudBar { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; position: relative; }
+    #hudBar { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; position: relative; z-index: 20; }
     #hud { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.3px; }
     .stat span { color: #58a6ff; font-variant-numeric: tabular-nums; }
     .coin-text span { color: #facc15; }
@@ -128,6 +131,8 @@
       background: #090d14;
       box-shadow: 0 22px 54px rgba(0, 0, 0, 0.9);
       touch-action: none;
+      position: relative;
+      z-index: 1;
     }
 
     /* CONCEPT-MATCHED HOME OVERLAY */
@@ -144,7 +149,10 @@
       border-radius: 10px;
       display: flex; flex-direction: column; align-items: center; justify-content: space-between;
       padding: 0.75rem 0.85rem;
-      text-align: center; z-index: 10; overflow-y: auto;
+      text-align: center;
+      z-index: 10;
+      overflow-y: auto;
+      pointer-events: auto;
     }
     .solid-overlay {
       background: rgba(8, 11, 17, 0.94);
@@ -159,7 +167,7 @@
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
-      pointer-events: none;
+      pointer-events: auto;
     }
 
     /* TOP BAR: TITLE LEFT + DRIVER ID & COINS RIGHT */
@@ -170,6 +178,8 @@
       justify-content: space-between;
       gap: 0.6rem;
       pointer-events: auto;
+      position: relative;
+      z-index: 2;
     }
     .brand-lockup { text-align: left; }
     .hero-title {
@@ -256,6 +266,8 @@
       align-items: center;
       box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.65), 0 14px 36px rgba(0, 0, 0, 0.85);
       pointer-events: auto;
+      position: relative;
+      z-index: 2;
     }
 
     /* LEFT SECTION: CAR PREVIEW + SWATCHES + SPEED/HANDLING/BOOST */
@@ -310,10 +322,13 @@
     }
     .swatch-row { display: flex; gap: 0.28rem; flex-shrink: 0; }
     .swatch {
-      width: 0.82rem; height: 0.82rem; min-width: 13px; min-height: 13px;
+      width: 0.82rem; height: 0.82rem; min-width: 14px; min-height: 14px;
       border-radius: 50%;
       border: 1.5px solid rgba(255, 255, 255, 0.28);
       cursor: pointer;
+      pointer-events: auto;
+      position: relative;
+      z-index: 2;
       transition: transform 0.1s ease;
     }
     html[data-input="mouse"] .swatch:hover { transform: scale(1.18); }
@@ -452,12 +467,18 @@
     .overlay-inner.compact-center {
       width: 100%; max-width: 430px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.45rem;
+      pointer-events: auto;
+      position: relative;
+      z-index: 2;
     }
     .modal-card {
       background: #121720; border: 1px solid rgba(125, 165, 215, 0.22); border-radius: 10px;
       padding: 1.35rem 1.45rem; width: 100%; max-width: 370px;
       display: flex; flex-direction: column; gap: 0.65rem;
       box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+      pointer-events: auto;
+      position: relative;
+      z-index: 2;
     }
     .modal-card button { min-height: 40px; }
     .hero-sub { font-size: 0.74rem; color: #8b949e; }
