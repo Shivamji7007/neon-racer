@@ -3,7 +3,6 @@ const ctx = canvas.getContext('2d');
 const previewCanvas = document.getElementById('carPreviewCanvas');
 const pCtx = previewCanvas.getContext('2d');
 
-// roundRect polyfill for older browsers (Safari < 16, older Firefox)
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
   CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
     r = Math.max(0, Math.min(r || 0, w / 2, h / 2));
@@ -16,13 +15,11 @@ if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D
   };
 }
 
-// Safe localStorage wrapper
 const store = {
   get(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (_) { return d; } },
   set(k, v) { try { localStorage.setItem(k, String(v)); } catch (_) {} },
 };
 
-// 3-Dot Menu & Dropdown Elements
 const dotsBtn = document.getElementById('dotsBtn');
 const dotsMenu = document.getElementById('dotsMenu');
 const menuResume = document.getElementById('menuResume');
@@ -74,12 +71,22 @@ const envLabelEl = document.getElementById('envLabel');
 const activeCarNameEl = document.getElementById('activeCarName');
 const driverNameInput = document.getElementById('driverNameInput');
 
+// Dynamic 5-lane desktop / 4-lane mobile highway geometry
 const ROAD_LEFT = 54;
-const ROAD_WIDTH = 312;
-const LANES = 4;
-const LANE_WIDTH = ROAD_WIDTH / LANES;
+let LANES = 5;
+let ROAD_WIDTH = 390;
+let LANE_WIDTH = ROAD_WIDTH / LANES;
 
-// Blur buttons on click so Spacebar never re-triggers them
+function applyRoadLayout(forcedLanes = null) {
+  const isMobilePortrait = document.documentElement.getAttribute('data-input') === 'touch' && window.innerHeight >= window.innerWidth;
+  LANES = forcedLanes || (isMobilePortrait ? 4 : 5);
+  ROAD_WIDTH = LANES * 78;
+  LANE_WIDTH = 78;
+  canvas.width = ROAD_LEFT * 2 + ROAD_WIDTH; // 498px (5 lanes) or 420px (4 lanes)
+  const aspectVal = (canvas.width / canvas.height).toFixed(4);
+  document.documentElement.style.setProperty('--aspect', aspectVal);
+}
+
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('button');
   if (b) b.blur();
@@ -89,7 +96,6 @@ const isShown = (el) => getComputedStyle(el).display !== 'none';
 const isOnline = () => mode === 'host' || mode === 'guest';
 const onlineRaceActive = () => isOnline() && gameStarted && !state.gameOver;
 
-// --- 3-DOT MENU TOGGLE & OUTSIDE CLICK CLOSE ---
 function closeDotsMenu() {
   dotsMenu.style.display = 'none';
 }
@@ -116,7 +122,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// --- DRIVER NAME & TOP-5 LEADERBOARD ---
 let driverName = store.get('highwayRushDriver', 'Shivam');
 driverNameInput.value = driverName;
 driverNameInput.addEventListener('input', () => {
@@ -178,7 +183,6 @@ function renderLeaderboard() {
   });
 }
 
-// --- GARAGE CARS CATALOG & PERSISTENT ECONOMY ---
 const CARS = [
   { id: 'swift',  name: 'Swift GT',        tag: 'Balanced Starter',   cost: 0,    speedBonus: 0.0, handling: 6.6, nitroDrain: 0.65, nitroRegen: 0.22, bodyStyle: 'hatch', spdPct: 60, hndPct: 68, nitPct: 60 },
   { id: 'verna',  name: 'Verna Turbo',     tag: 'Fast Highway Sedan', cost: 250,  speedBonus: 0.7, handling: 7.4, nitroDrain: 0.58, nitroRegen: 0.25, bodyStyle: 'sedan', spdPct: 76, hndPct: 78, nitPct: 70 },
@@ -355,7 +359,6 @@ const rawBest = Number(store.get('highwayRushBest', 0));
 let bestScore = Number.isFinite(rawBest) && rawBest > 0 ? rawBest : 0;
 bestEl.textContent = bestScore;
 
-// --- LOCAL VFX & WEATHER PARTICLES ---
 let particles = [];
 let skidMarks = [];
 let speedLines = [];
@@ -417,7 +420,6 @@ function spawnSmoke(x, y, isWaterSpray = false) {
   });
 }
 
-// --- PROCEDURAL WEB AUDIO ---
 let audioCtx = null, engineOsc = null, engineGain = null;
 function initAudio() {
   try {
@@ -454,7 +456,6 @@ function playTone(freq, type, duration, vol = 0.08) {
   osc.stop(audioCtx.currentTime + duration);
 }
 
-// --- PEERJS ONLINE MULTIPLAYER ---
 let peer = null;
 let conn = null;
 const NO_INPUT = () => ({ left: false, right: false, up: false, down: false });
@@ -568,6 +569,9 @@ function joinOnlineRoom() {
       if (!data) return;
       if (data.type === 'state') {
         state = data.state;
+        if (state.lanes && state.lanes !== LANES) {
+          applyRoadLayout(state.lanes);
+        }
         if (state.gameOver && gameStarted) {
           bankGuestRun();
           updateHudFromState();
@@ -925,6 +929,17 @@ function clearAllInputs() {
 
 window.addEventListener('blur', clearAllInputs);
 
+window.addEventListener('resize', () => {
+  if (!gameStarted && !isOnline()) {
+    const prevLanes = LANES;
+    applyRoadLayout();
+    if (LANES !== prevLanes) {
+      initPropsAndRain();
+      resetGame();
+    }
+  }
+});
+
 function triggerRestart() {
   if (!state.gameOver || !gameStarted) return;
   clearAllInputs();
@@ -1016,6 +1031,7 @@ function resolveAtmosphere(distanceKm) {
 }
 
 function resetGame() {
+  if (mode !== 'guest') applyRoadLayout();
   clearAllInputs();
   gameOverOverlay.style.display = 'none';
   particles = [];
@@ -1029,13 +1045,17 @@ function resetGame() {
   const p2Spec = mode === 'host' ? getCarSpec(p2CarId) : CARS[0];
   const isMulti = mode !== '1p';
 
+  const p1StartX = ROAD_LEFT + LANE_WIDTH + (LANE_WIDTH - 36) / 2;
+  const p2StartX = ROAD_LEFT + (LANES - 2) * LANE_WIDTH + (LANE_WIDTH - 36) / 2;
+
   const players = isMulti
-    ? [createPlayer(ROAD_LEFT + 58, selectedColor, 'P1', p1Spec), createPlayer(ROAD_LEFT + 218, p2Color, 'P2', p2Spec)]
+    ? [createPlayer(p1StartX, selectedColor, 'P1', p1Spec), createPlayer(p2StartX, p2Color, 'P2', p2Spec)]
     : [createPlayer(canvas.width / 2 - 18, selectedColor, 'P1', p1Spec)];
 
   const atm = resolveAtmosphere(0);
 
   state = {
+    lanes: LANES,
     players,
     baseSpeed: cfg.baseSpeed + p1Spec.speedBonus,
     currentSpeed: cfg.baseSpeed + p1Spec.speedBonus,
@@ -1088,7 +1108,7 @@ function updateAttractDemo() {
   });
 
   state.spawnTimer++;
-  if (state.spawnTimer >= 46) {
+  if (state.spawnTimer >= 42) {
     spawnTraffic();
     state.spawnTimer = 0;
   }
@@ -1707,7 +1727,9 @@ function update() {
   updatePoliceChase();
 
   state.spawnTimer++;
-  const spawnInterval = Math.max(cfg.spawnMin, cfg.spawnStart - Math.floor(maxScore / 600));
+  const baseSpawn = LANES === 5 ? Math.round(cfg.spawnStart * 0.85) : cfg.spawnStart;
+  const minSpawn = LANES === 5 ? Math.round(cfg.spawnMin * 0.85) : cfg.spawnMin;
+  const spawnInterval = Math.max(minSpawn, baseSpawn - Math.floor(maxScore / 600));
   if (state.spawnTimer >= spawnInterval) { spawnTraffic(); state.spawnTimer = 0; }
 
   state.pickupTimer++;
@@ -2024,6 +2046,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+applyRoadLayout();
 initPropsAndRain();
 resetGame();
 renderCarPreviewCard();
