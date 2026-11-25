@@ -231,33 +231,26 @@ function renderCarPreviewCard() {
   pCtx.setLineDash([]);
 
   const grad = pCtx.createLinearGradient(32, 22, 32, 0);
+ pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+  pCtx.fillStyle = '#090c10';
+  pCtx.fillRect(0, 0, 64, 60);
+  pCtx.strokeStyle = 'rgba(255,255,255,0.18)';
+  pCtx.setLineDash([6, 6]);
+  pCtx.beginPath(); pCtx.moveTo(32, 0); pCtx.lineTo(32, 60); pCtx.stroke();
+  pCtx.setLineDash([]);
+
+  const grad = pCtx.createLinearGradient(32, 12, 32, 0);
   grad.addColorStop(0, 'rgba(254, 240, 138, 0.38)');
   grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
   pCtx.fillStyle = grad;
   pCtx.beginPath();
-  pCtx.moveTo(20, 22); pCtx.lineTo(8, 0); pCtx.lineTo(56, 0); pCtx.lineTo(44, 22);
+  pCtx.moveTo(20, 12); pCtx.lineTo(8, 0); pCtx.lineTo(56, 0); pCtx.lineTo(44, 12);
   pCtx.fill();
 
-  const w = spec.bodyStyle === 'suv' ? 32 : 30;
-  const h = 54;
+  const w = spec.bodyStyle === 'suv' ? 30 : 28;
+  const h = 42;
   const x = (64 - w) / 2;
-  const y = 20;
-
-  pCtx.shadowColor = selectedColor;
-  pCtx.shadowBlur = 12;
-  pCtx.fillStyle = selectedColor;
-  pCtx.beginPath();
-  pCtx.roundRect(x, y, w, h, spec.bodyStyle === 'suv' ? 4 : 7);
-  pCtx.fill();
-  pCtx.shadowBlur = 0;
-
-  pCtx.fillStyle = '#0d1117';
-  pCtx.fillRect(x + 4, y + 11, w - 8, 12);
-  pCtx.fillRect(x + 5, y + h - 16, w - 10, 8);
-
-  if (spec.bodyStyle === 'suv') {
-    pCtx.fillStyle = '#161b22';
-    pCtx.fillRect(x + 3, y + 25, w - 6, 12);
+  const y = 11;
   } else if (spec.bodyStyle === 'hyper') {
     pCtx.fillStyle = '#facc15';
     pCtx.fillRect(x + w / 2 - 4, y + 3, 2.5, h - 6);
