@@ -100,7 +100,6 @@ dotsBtn.addEventListener('click', (e) => {
   if (isOpen) {
     closeDotsMenu();
   } else {
-    // Auto-pause offline active race when opening 3-dot menu
     if (gameStarted && !state.gameOver && !paused && !isOnline()) {
       paused = true;
       if (engineGain) engineGain.gain.value = 0;
@@ -476,7 +475,6 @@ function resetOnlineLobbyUI() {
   document.getElementById('hostStatus').textContent = 'Waiting for friend to join...';
   document.getElementById('joinStatus').textContent = '';
 }
-
 function createOnlineRoom(retryCount = 0) {
   cleanupPeer();
   initAudio();
@@ -660,7 +658,6 @@ function syncTopNavState() {
   menuHomeDivider.style.display = gameStarted ? 'block' : 'none';
   menuHome.style.display = gameStarted ? 'flex' : 'none';
 
-  // Hide mode/garage switches during active online match
   const lockMidOnline = onlineRaceActive();
   menu1P.style.display = lockMidOnline ? 'none' : 'flex';
   menu2P.style.display = lockMidOnline ? 'none' : 'flex';
@@ -907,14 +904,23 @@ document.querySelectorAll('#weatherRow button').forEach((btn) => {
 
 startBtn.addEventListener('click', startRaceSession);
 
-// --- KEYBOARD & TOUCH INPUTS ---
+// --- KEYBOARD & MULTI-TOUCH SLIDE INPUTS ---
 const keys = {};
 const touchState = { left: false, right: false, up: false, down: false };
 const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyP', 'Escape']);
+const touchButtons = Array.from(document.querySelectorAll('#touchControls .touch-btn'));
+
+function syncTouchVisuals() {
+  touchButtons.forEach((btn) => {
+    const ctrl = btn.dataset.ctrl;
+    if (ctrl) btn.classList.toggle('pressed', !!touchState[ctrl]);
+  });
+}
 
 function clearAllInputs() {
   Object.keys(keys).forEach((k) => (keys[k] = false));
   touchState.left = touchState.right = touchState.up = touchState.down = false;
+  syncTouchVisuals();
 }
 
 window.addEventListener('blur', clearAllInputs);
@@ -932,20 +938,36 @@ function triggerRestart() {
   }
 }
 
-function bindTouch(id, prop) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); touchState[prop] = true; }, { passive: false });
-  el.addEventListener('touchend', (e) => { e.preventDefault(); touchState[prop] = false; }, { passive: false });
-  el.addEventListener('touchcancel', () => { touchState[prop] = false; });
-  el.addEventListener('mousedown', () => { initAudio(); touchState[prop] = true; });
-  el.addEventListener('mouseup', () => { touchState[prop] = false; });
-  el.addEventListener('mouseleave', () => { touchState[prop] = false; });
+const touchContainer = document.getElementById('touchControls');
+function updateActiveTouches(e) {
+  e.preventDefault();
+  initAudio();
+  touchState.left = touchState.right = touchState.up = touchState.down = false;
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    const target = document.elementFromPoint(t.clientX, t.clientY);
+    const btn = target && target.closest && target.closest('.touch-btn');
+    if (btn && btn.dataset.ctrl) {
+      touchState[btn.dataset.ctrl] = true;
+    }
+  }
+  syncTouchVisuals();
 }
-bindTouch('tLeft', 'left');
-bindTouch('tRight', 'right');
-bindTouch('tNitro', 'up');
-bindTouch('tBrake', 'down');
+
+if (touchContainer) {
+  touchContainer.addEventListener('touchstart', updateActiveTouches, { passive: false });
+  touchContainer.addEventListener('touchmove', updateActiveTouches, { passive: false });
+  touchContainer.addEventListener('touchend', updateActiveTouches, { passive: false });
+  touchContainer.addEventListener('touchcancel', clearAllInputs);
+}
+
+touchButtons.forEach((btn) => {
+  const prop = btn.dataset.ctrl;
+  if (!prop) return;
+  btn.addEventListener('mousedown', () => { initAudio(); touchState[prop] = true; syncTouchVisuals(); });
+  btn.addEventListener('mouseup', () => { touchState[prop] = false; syncTouchVisuals(); });
+  btn.addEventListener('mouseleave', () => { touchState[prop] = false; syncTouchVisuals(); });
+});
 
 window.addEventListener('keydown', (e) => {
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
@@ -1174,9 +1196,10 @@ function updateRivalAI(currentSpeed) {
 }
 
 function spawnPoliceChase() {
-  const p1 = state.players[0];
+  const activeTarget = state.players.find((p) => p.alive);
+  if (!activeTarget) return;
   state.police = {
-    x: p1.x,
+    x: activeTarget.x,
     y: canvas.height + 60,
     w: 38,
     h: 66,
@@ -1190,8 +1213,8 @@ function spawnPoliceChase() {
 function updatePoliceChase() {
   const cop = state.police;
   if (!cop) return;
-  const p1 = state.players[0];
-  if (!p1.alive) { state.police = null; return; }
+  const targetPlayer = state.players.find((p) => p.alive);
+  if (!targetPlayer) { state.police = null; return; }
 
   cop.timer--;
   cop.sirenTick++;
@@ -1199,16 +1222,16 @@ function updatePoliceChase() {
     broadcastSfx(cop.sirenTick % 84 === 0 ? 780 : 580, 'sine', 0.22, 0.045);
   }
 
-  const targetY = p1.boosting ? canvas.height - 42 : canvas.height - 74;
+  const targetY = targetPlayer.boosting ? canvas.height - 42 : canvas.height - 74;
   cop.y += (targetY - cop.y) * 0.06;
-  cop.x += (p1.x - cop.x) * 0.07;
+  cop.x += (targetPlayer.x - cop.x) * 0.07;
 
   if (cop.timer <= 0) {
-    p1.score += 500;
-    p1.runCoins += 25;
+    targetPlayer.score += 500;
+    targetPlayer.runCoins += 25;
     broadcastSfx(1080, 'sine', 0.28, 0.1);
-    broadcastVfx('sparks', p1.x + p1.w / 2, p1.y, '#60a5fa');
-    addPopup(p1.x, p1.y - 24, '+500 PURSUIT ESCAPED!', '#60a5fa');
+    broadcastVfx('sparks', targetPlayer.x + targetPlayer.w / 2, targetPlayer.y, '#60a5fa');
+    addPopup(targetPlayer.x, targetPlayer.y - 24, '+500 PURSUIT ESCAPED!', '#60a5fa');
     state.police = null;
   }
 }
@@ -1473,14 +1496,14 @@ function updateHudFromState() {
   const p1 = state.players[0];
   const p2 = state.players[1];
   p1ScoreEl.textContent = p1.score;
-  p1NitroEl.textContent = `${Math.round(p1.nitro)}%`;
+  p1NitroEl.textContent = p1.alive ? `${Math.round(p1.nitro)}%` : 'OUT';
   const me = mode === 'guest' && p2 ? p2 : p1;
   const coins = state.gameOver ? totalCoins : totalCoins + me.runCoins;
   coinsHudEl.textContent = Math.floor(coins);
   homeCoinsPill.textContent = `₹ ${Math.floor(coins)}`;
   if (p2) {
     p2ScoreEl.textContent = p2.score;
-    p2NitroEl.textContent = `${Math.round(p2.nitro)}%`;
+    p2NitroEl.textContent = p2.alive ? `${Math.round(p2.nitro)}%` : 'OUT';
   }
   if (state.envLabel) envLabelEl.textContent = state.envLabel;
 }
@@ -1565,7 +1588,7 @@ function update() {
   updateLocalVfx();
 
   if (mode === 'guest') {
-    if (engineOsc && !muted && !state.gameOver) {
+    if (engineOsc && !muted && !state.gameOver && state.players[1] && state.players[1].alive) {
       engineGain.gain.value = 0.02;
       engineOsc.frequency.setTargetAtTime(48 + (state.currentSpeed || 6) * 6.5, audioCtx.currentTime, 0.05);
     } else if (engineGain) {
@@ -1615,14 +1638,18 @@ function update() {
     p2.braking = p2.alive && !!p2Down;
   }
 
-  p1.nitro = p1Boost ? Math.max(0, p1.nitro - p1.nitroDrain) : Math.min(100, p1.nitro + p1.nitroRegen);
-  if (p2) p2.nitro = p2Boost ? Math.max(0, p2.nitro - p2.nitroDrain) : Math.min(100, p2.nitro + p2.nitroRegen);
+  if (p1.alive) {
+    p1.nitro = p1Boost ? Math.max(0, p1.nitro - p1.nitroDrain) : Math.min(100, p1.nitro + p1.nitroRegen);
+  }
+  if (p2 && p2.alive) {
+    p2.nitro = p2Boost ? Math.max(0, p2.nitro - p2.nitroDrain) : Math.min(100, p2.nitro + p2.nitroRegen);
+  }
 
   const maxScore = Math.max(p1.score, p2 ? p2.score : 0);
   let currentSpeed = state.baseSpeed + Math.min(maxScore / 950, 6.5);
   state.boostingAny = !!(p1Boost || p2Boost);
   if (state.boostingAny) currentSpeed *= 1.45;
-  if (p1.braking || (p2 && p2.braking)) currentSpeed *= 0.65;
+  if ((p1.alive && p1.braking) || (p2 && p2.alive && p2.braking)) currentSpeed *= 0.65;
   state.currentSpeed = currentSpeed;
 
   if (engineOsc && !muted) {
@@ -1755,6 +1782,11 @@ function update() {
           broadcastSfx(90, 'sawtooth', 0.45, 0.16);
           broadcastVfx('shake');
           broadcastVfx('sparks', p.x + p.w / 2, p.y + p.h / 2, '#ff7b72');
+
+          const survivor = state.players.find((pl) => pl.alive);
+          if (survivor && mode !== '1p') {
+            addPopup(canvas.width / 2 - 18, 145, `${p.label} CRASHED! ${survivor.label} KEEP GOING!`, '#ff7b72');
+          }
         }
       }
     }
@@ -1762,16 +1794,19 @@ function update() {
   }
 
   const alivePlayers = state.players.filter((p) => p.alive);
-  if (alivePlayers.length === 0 || (mode !== '1p' && alivePlayers.length === 1)) {
+  if (alivePlayers.length === 0) {
     state.gameOver = true;
-    if (mode !== '1p') {
-      state.winnerText = alivePlayers.length === 1 ? `${alivePlayers[0].label} WINS!` : 'DOUBLE CRASH!';
+    if (mode !== '1p' && p2) {
+      if (p1.score > p2.score) state.winnerText = 'P1 WINS!';
+      else if (p2.score > p1.score) state.winnerText = 'P2 WINS!';
+      else state.winnerText = 'TIE GAME!';
     }
     const distanceBonus = Math.floor(state.distanceKm * 4);
-    const totalEarned = p1.runCoins + distanceBonus;
+    const localPickupCoins = mode === '2p' && p2 ? (p1.runCoins + p2.runCoins) : p1.runCoins;
+    const totalEarned = localPickupCoins + distanceBonus;
     totalCoins += totalEarned;
     saveEconomy();
-    state.earnedSummary = `+${totalEarned} Coins Banked! (${p1.runCoins} pickup + ${distanceBonus} km)`;
+    state.earnedSummary = `+${totalEarned} Coins Banked! (${localPickupCoins} pickup + ${distanceBonus} km)`;
 
     const topIdx = p2 && p2.score > p1.score ? 1 : 0;
     const top = state.players[topIdx];
@@ -1973,7 +2008,6 @@ function render() {
   ctx.restore();
 }
 
-// Fixed 60 updates/sec regardless of monitor refresh rate
 const STEP_MS = 1000 / 60;
 let lastTime = 0;
 let accumulator = 0;
