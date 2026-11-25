@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-input="mouse">
+<html lang="en" data-input="mouse" data-playing="0">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -18,7 +18,7 @@
       document.documentElement.setAttribute('data-input', mode);
     })();
   </script>
-  <title>Highway Rush v8.5</title>
+  <title>Highway Rush v8.6</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
     onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s);"></script>
   <style>
@@ -30,18 +30,13 @@
        on phones, tablets, laptops and big monitors.
        ===================================================================== */
     :root {
-      --reserved: 100px; /* vertical space used by HUD bar + page padding */
+      --reserved: 176px; /* HUD bar + page padding + bottom control buttons (space is always kept) */
       --gw: max(240px, min(calc(100vw - 30px), calc((100dvh - var(--reserved)) * 0.75), 640px));
       --stage-w: calc(var(--gw) + 6px);
     }
+    /* Phones held sideways: buttons float at the screen edges, so reserve less height */
+    @media (orientation: landscape) and (max-height: 520px) { :root { --reserved: 64px; } }
     html { font-size: clamp(12px, calc(var(--gw) / 26.25), 24px); -webkit-text-size-adjust: 100%; }
-
-    /* Touch devices: reserve room for the on-screen buttons */
-    html[data-input="touch"] { --reserved: 178px; }
-    /* Phones in landscape: controls float at the sides, so only the HUD is reserved */
-    @media (orientation: landscape) and (max-height: 520px) {
-      html[data-input="touch"] { --reserved: 64px; }
-    }
 
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     body {
@@ -263,60 +258,42 @@
     /* ---------- Hints that only make sense with a keyboard ---------- */
     .key-hint { font-size: 0.7rem; color: #8b949e; }
 
-    /* ---------- On-screen touch controls (touch devices only) ---------- */
+    /* ---------- Bottom control buttons ---------- */
     #touchControls {
-      display: none;
       width: var(--stage-w); max-width: 100%;
       margin-top: 0.6rem;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;
+      visibility: hidden; /* hidden (but space kept) on home / pause / game over / menus */
     }
+    html[data-playing="1"] #touchControls { visibility: visible; }
     .touch-btn {
       padding: 0.5rem 0.2rem; min-height: max(52px, 3.4rem);
       font-size: 0.78rem; border-radius: 0.7rem;
       background: #21262d; border: 1px solid #484f58;
       touch-action: none; -webkit-tap-highlight-color: transparent;
     }
-    .touch-btn:active { background: #1f6feb; border-color: #58a6ff; }
-    html[data-input="touch"] #touchControls { display: grid; }
-    html[data-input="touch"] #controls { display: none; }
-    html[data-input="touch"] .key-hint { display: none; }
-    /* Phone landscape: Left/Right on the left edge, Nitro/Brake on the right edge */
+    .touch-btn.pressed, .touch-btn:active { background: #1f6feb; border-color: #58a6ff; }
+    /* Landscape phones: Left/Right at the left edge, Nitro/Brake at the right edge */
     @media (orientation: landscape) and (max-height: 520px) {
-      html[data-input="touch"] #touchControls {
+      #touchControls {
         position: fixed; left: 0; right: 0; bottom: max(10px, env(safe-area-inset-bottom));
         width: auto; margin: 0; padding: 0 max(14px, env(safe-area-inset-left));
         display: flex; gap: 0.5rem; pointer-events: none; z-index: 20;
       }
-      html[data-input="touch"] .touch-btn { pointer-events: auto; width: 84px; background: rgba(33, 38, 45, 0.78); }
-      html[data-input="touch"] #tLeft { order: 1; }
-      html[data-input="touch"] #tRight { order: 2; }
-      html[data-input="touch"] #tNitro { order: 3; margin-left: auto; }
-      html[data-input="touch"] #tBrake { order: 4; }
+      html[data-playing="1"] .touch-btn { pointer-events: auto; }
+      .touch-btn { width: 84px; background: rgba(33, 38, 45, 0.78); }
+      #tLeft { order: 1; }
+      #tRight { order: 2; }
+      #tNitro { order: 3; margin-left: auto; }
+      #tBrake { order: 4; }
     }
 
-    /* ---------- Keyboard legend (desktop browsers only) ---------- */
-    #controls {
-      width: 250px;
-      background: rgba(22, 27, 34, 0.85); border: 1px solid #30363d; border-radius: 10px;
-      padding: 14px 16px; font-size: 12px; color: #c9d1d9;
-    }
-    #controls h3 { font-size: 11px; letter-spacing: 1.4px; color: #8b949e; margin-bottom: 10px; }
-    #controls h3:not(:first-child) { margin-top: 16px; }
-    .key-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid #21262d; }
-    .key-row:last-child { border-bottom: none; }
-    .keys { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+    /* Keyboard hints are meaningless on touch-only devices */
+    html[data-input="touch"] .key-hint { display: none; }
     kbd {
-      display: inline-block; min-width: 24px; padding: 3px 7px;
+      display: inline-block; padding: 1px 6px;
       background: #21262d; border: 1px solid #484f58; border-bottom-width: 2px; border-radius: 5px;
-      font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #f0f6fc; text-align: center;
-    }
-    .menu-item kbd { margin-left: auto; font-size: 10px; padding: 1px 6px; min-width: 0; }
-    .sep { color: #6e7681; font-size: 10px; }
-    .note { margin-top: 12px; font-size: 11px; color: #8b949e; line-height: 1.5; }
-    @media (max-width: 900px) {
-      .layout { flex-direction: column; align-items: center; }
-      #controls { width: var(--stage-w); max-width: 100%; }
+      font-family: 'Consolas', 'Courier New', monospace; font-size: 0.65rem; font-weight: 700; color: #f0f6fc;
     }
   </style>
 </head>
@@ -362,7 +339,7 @@
         <!-- HOME SCREEN -->
         <div id="startOverlay" class="overlay">
           <div>
-            <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.5</div>
+            <div class="title-badge">NHAI EXPRESSWAY SERIES • v8.6</div>
             <div class="hero-title">NH-44 HIGHWAY RUSH</div>
             <div class="hero-sub">High-Speed Arcade • Rival AI • Online Multiplayer</div>
           </div>
@@ -501,33 +478,32 @@
         </div>
       </div>
 
-      <!-- ON-SCREEN CONTROLS (shown on touch devices only) -->
+      <!-- BOTTOM CONTROL BUTTONS: visible only while a race is running -->
       <div id="touchControls">
-        <button class="touch-btn" id="tLeft">◀ LEFT</button>
-        <button class="touch-btn" id="tNitro">🔥 NITRO</button>
-        <button class="touch-btn" id="tBrake">🛑 BRAKE</button>
-        <button class="touch-btn" id="tRight">RIGHT ▶</button>
+        <button class="touch-btn" id="tLeft" data-ctrl="left">◀ LEFT</button>
+        <button class="touch-btn" id="tNitro" data-ctrl="up">🔥 NITRO</button>
+        <button class="touch-btn" id="tBrake" data-ctrl="down">🛑 BRAKE</button>
+        <button class="touch-btn" id="tRight" data-ctrl="right">RIGHT ▶</button>
       </div>
     </main>
 
-    <!-- KEYBOARD LEGEND (shown on desktop browsers only) -->
-    <aside id="controls">
-      <h3>CONTROLS</h3>
-      <div class="key-row"><span>Steer</span><span class="keys"><kbd>A</kbd><kbd>D</kbd><span class="sep">or</span><kbd>←</kbd><kbd>→</kbd></span></div>
-      <div class="key-row"><span>Nitro</span><span class="keys"><kbd>W</kbd><span class="sep">or</span><kbd>↑</kbd></span></div>
-      <div class="key-row"><span>Brake</span><span class="keys"><kbd>S</kbd><span class="sep">or</span><kbd>↓</kbd></span></div>
-      <div class="key-row"><span>Pause</span><span class="keys"><kbd>P</kbd><span class="sep">or</span><kbd>Esc</kbd></span></div>
-      <div class="key-row"><span>Start / Restart</span><span class="keys"><kbd>Space</kbd></span></div>
-
-      <h3>2 PLAYER LOCAL</h3>
-      <div class="key-row"><span>Player 1</span><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
-      <div class="key-row"><span>Player 2</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span></div>
-
-      <p class="note">Click <b>⋮</b> above the track for modes, garage, hall of fame and sound.</p>
-    </aside>
-
   </div>
 
+  <script>
+    /* Show the bottom control buttons only while a race is actually running:
+       i.e. when NO overlay (home / pause / game over / garage / ranks / online) is visible. */
+    (function () {
+      var ids = ['startOverlay', 'pauseOverlay', 'gameOverOverlay', 'garageOverlay', 'ranksOverlay', 'onlineOverlay'];
+      var els = ids.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+      function sync() {
+        var anyShown = els.some(function (e) { return getComputedStyle(e).display !== 'none'; });
+        document.documentElement.setAttribute('data-playing', anyShown ? '0' : '1');
+      }
+      var mo = new MutationObserver(sync);
+      els.forEach(function (e) { mo.observe(e, { attributes: true, attributeFilter: ['style', 'class'] }); });
+      sync();
+    })();
+  </script>
   <script src="game.js"></script>
 </body>
 </html>
