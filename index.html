@@ -9,9 +9,10 @@
     (function () {
       var m = function (q) { return !!(window.matchMedia && matchMedia(q).matches); };
       var forced = new URLSearchParams(location.search).get('input');
+      var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       var mode = (forced === 'touch' || forced === 'mouse')
         ? forced
-        : ((!m('(any-pointer: fine)') && m('(any-pointer: coarse)')) ? 'touch' : 'mouse');
+        : ((!m('(any-pointer: fine)') && (m('(any-pointer: coarse)') || hasTouch)) ? 'touch' : 'mouse');
       document.documentElement.setAttribute('data-input', mode);
     })();
   </script>
@@ -26,7 +27,7 @@
       --stage-w: calc(var(--gw) + 6px);
     }
     html[data-input="touch"] {
-      --reserved: 158px;
+      --reserved: 168px;
       --aspect: 0.75;
     }
     @media (orientation: landscape) and (max-height: 520px) {
@@ -162,11 +163,12 @@
 
     .home-shell {
       width: 100%;
-      height: 100%;
+      min-height: 100%;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
+      gap: 0.5rem;
       pointer-events: auto;
     }
 
@@ -322,7 +324,7 @@
     }
     .swatch-row { display: flex; gap: 0.28rem; flex-shrink: 0; }
     .swatch {
-      width: 0.82rem; height: 0.82rem; min-width: 14px; min-height: 14px;
+      width: 0.85rem; height: 0.85rem; min-width: 16px; min-height: 16px;
       border-radius: 50%;
       border: 1.5px solid rgba(255, 255, 255, 0.28);
       cursor: pointer;
@@ -375,7 +377,7 @@
       border: none;
       border-radius: 4px;
       padding: 0.24rem 0.1rem;
-      min-height: 22px;
+      min-height: 24px;
       font-size: 0.56rem;
       font-weight: 800;
       letter-spacing: 0.3px;
@@ -405,7 +407,7 @@
     }
     .sec-btn {
       padding: 0.32rem 0.18rem;
-      min-height: 26px;
+      min-height: 28px;
       font-size: 0.56rem;
       font-weight: 900;
       letter-spacing: 0.5px;
@@ -424,7 +426,7 @@
       font-style: italic;
       letter-spacing: 1px;
       padding: 0.52rem 0.75rem;
-      min-height: 36px;
+      min-height: 38px;
       border-radius: 6px;
       box-shadow: 0 0 20px rgba(249, 115, 22, 0.42);
     }
@@ -524,18 +526,30 @@
       font-family: 'Consolas', 'Courier New', monospace; font-size: 0.62rem; font-weight: 700; color: #f0f6fc;
     }
 
+    /* TOUCH CONTROLS */
     #touchControls {
       width: var(--stage-w); max-width: 100%;
       margin-top: 0.55rem;
-      display: none; grid-template-columns: repeat(4, 1fr); gap: 0.45rem;
+      display: none;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.45rem;
       visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
     }
     html[data-input="touch"] #touchControls { display: grid; }
-    html[data-input="touch"][data-playing="1"] #touchControls { visibility: visible; }
+    html[data-input="touch"][data-playing="1"] #touchControls {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+      position: relative;
+      z-index: 25;
+    }
     .touch-btn {
-      padding: 0.5rem 0.2rem; min-height: max(52px, 3.4rem);
-      font-size: 0.74rem; border-radius: 8px;
-      background: #121720; border: 1px solid rgba(125, 165, 215, 0.22);
+      padding: 0.5rem 0.2rem; min-height: max(54px, 3.4rem);
+      font-size: 0.76rem; border-radius: 8px;
+      background: linear-gradient(180deg, rgba(24, 32, 46, 0.96) 0%, rgba(12, 17, 26, 0.98) 100%);
+      border: 1px solid rgba(125, 165, 215, 0.28);
       touch-action: none; -webkit-tap-highlight-color: transparent;
     }
     .touch-btn.pressed, .touch-btn:active { background: #1f6feb; border-color: #58a6ff; }
@@ -543,10 +557,11 @@
       #touchControls {
         position: fixed; left: 0; right: 0; bottom: max(10px, env(safe-area-inset-bottom));
         width: auto; margin: 0; padding: 0 max(14px, env(safe-area-inset-left));
-        display: flex; gap: 0.5rem; pointer-events: none; z-index: 20;
+        display: flex; gap: 0.5rem; pointer-events: none; z-index: 25;
       }
+      html[data-input="touch"][data-playing="1"] #touchControls { pointer-events: none; }
       html[data-input="touch"][data-playing="1"] .touch-btn { pointer-events: auto; }
-      .touch-btn { width: 84px; background: rgba(18, 23, 32, 0.85); }
+      .touch-btn { width: 84px; background: rgba(18, 23, 32, 0.88); }
       #tLeft { order: 1; }
       #tRight { order: 2; }
       #tNitro { order: 3; margin-left: auto; }
